@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>teste de spreadsheet</title>
+
+	<link rel="stylesheet" type="text/css" href="css/SpreadSheet.css">
+	<script type="text/javascript" src="js/SpreadSheet.js"></script>
+
+	<style>
+		body {
+			background-color: rgb(220, 220, 220);
+		}
+		
+		div#container {
+			position: relative;
+			background-color: white;
+			display: inline-block;
+			width: calc(100% - 400px);
+			height: 800px;
+			overflow: hidden;
+			border-radius: 3px;
+			margin-left: 100px;
+			margin-right: 100px;
+			padding: 30px 100px;
+			box-shadow: 2px 2px 3px 1px rgb(160, 160, 160);
+		}
+
+	</style>
+</head>
+<body>
+	<div id="container"></div>
+
+
+	<script>
+		let container = document.getElementById("container");
+		let _data = [];
+		for (var j = 1; j < 50; j++) {
+			let newRow = {
+				rowData: [],
+			};
+			for(var i = 0; i < 50; i++) {
+				let newCell = {
+					textContent: j + 'x' + i,
+				};
+				newRow.rowData.push(newCell);
+			}
+			_data.push(newRow);
+		}
+		let spreadsheet = new SpreadSheet(container);
+		spreadsheet.createEmptySheet();
+		// spreadsheet.createSheetFromData(_data);
+	</script>
+</body>
+</html>
