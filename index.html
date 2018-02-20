@@ -24,7 +24,6 @@
 			padding: 30px 100px;
 			box-shadow: 2px 2px 3px 1px rgb(160, 160, 160);
 		}
-
 	</style>
 </head>
 <body>
@@ -47,10 +46,9 @@
 			_data.push(newRow);
 		}
 		let spreadsheet = new SpreadSheet(container);
+		spreadsheet.loadModules(["headings"]);
 		spreadsheet.createEmptySheet();
-		spreadsheet.selectColumns([0, 1, 2, 3, 4]);
-		// spreadsheet.selectCell({row: 0, column: 0});
-		// spreadsheet.createSheetFromData(_data);
+
 	</script>
 </body>
 </html>
