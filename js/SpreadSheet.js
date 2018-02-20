@@ -34,26 +34,10 @@ function SpreadSheet(parentElement, options) {
 	};
 
 	let _userOptions = null;
-	let _scrollBarWidth = 0;
-	let _scrollBarHeight = 0;
 
 
 
 	// 	Private methods:
-
-	function calculateScrollbarDimensions() {
-		let _tempScrollContainer = DOMManager.createDiv();
-		_tempScrollContainer.classList.add("SpreadSheet--temporary_container");
-		document.body.appendChild(_tempScrollContainer);
-
-		let _tempScrollContainerBCR = _tempScrollContainer.getBoundingClientRect();
-		_scrollBarWidth = _tempScrollContainerBCR.width - _tempScrollContainer.clientWidth;
-		_scrollBarHeight = _tempScrollContainerBCR.height - _tempScrollContainer.clientHeight;
-
-		document.body.removeChild(_tempScrollContainer);
-	}
-
-
 	function parseContainer(containerEl) {
 		if(containerEl) {		
 			if(containerEl.tagName && containerEl.tagName.toLowerCase() === "div") {
@@ -67,173 +51,8 @@ function SpreadSheet(parentElement, options) {
 				throw new Error("SpreadSheet objects shall be contained in DIV elements.");
 			}
 		}
-
-		calculateScrollbarDimensions();
 	}
-	function createHorizontalHeading() {
-		// if querySelector.... not exists....
-		let _data = [];
-		let _row = [];
-		let _columns = _defaultOptions.numberOfColumns;
-
-		for(let _curCol = 1; _curCol <= _columns; _curCol++) {
-			let _newCell = {
-				textContent: DataManager.convertNumberToColumnName(_curCol),
-			}
-			_row.push(_newCell);
-		}
-		_data.push(_row);
-
-		let _wrapper = DOMManager.createDiv();
-		_wrapper.classList.add("SpreadSheet--horizontal_heading_wrapper");
-		let _cornerHeading = _stageContainer.querySelector(".SpreadSheet--corner_heading_wrapper");
-		let _cornerHeadingBCR = _cornerHeading.getBoundingClientRect();
-		let _widthCalc = _cornerHeadingBCR.width + _scrollBarWidth;
-		_wrapper.style.cssText = "width: calc(100% - " + _widthCalc + "px); left: " + _cornerHeadingBCR.width + "px; height: " + _cornerHeadingBCR.height + "px;";
-
-		let _container = DOMManager.createDiv();
-		_container.classList.add("SpreadSheet--horizontal_heading_container");
-
-
-		let isSyncingDataContainer = false;
-		let isSyncingContainer = false;
-
-		_dataContainer.addEventListener("scroll", function(evt) {
-			if (!isSyncingDataContainer) {
-				isSyncingContainer = true;
-				_container.scrollLeft = this.scrollLeft;
-			}
-
-			isSyncingDataContainer = false;
-		});
-
-		_container.onscroll = function() {
-			if (!isSyncingContainer) {
-				isSyncingDataContainer = true;
-				_dataContainer.scrollLeft = this.scrollLeft;
-			}
-
-			isSyncingContainer = false;
-		}
-
-		let _headingTable = DOMManager.createTableFromData(_data);
-		_headingTable.classList.add("SpreadSheet--table");
-		_headingTable.classList.add("SpreadSheet--horizontal_heading_table");
-		_headingTable.style.cssText = "height: " + _cornerHeadingBCR.height + "px";
-
-		let _useCustomCursor = _defaultOptions.modules.cursor;
-		if(_useCustomCursor) {
-			_headingTable.classList.add("SpreadSheet--horizontal_heading_table_cursor");
-		}
-
-		for(let _curCol = 0; _curCol < _columns; _curCol++) {
-			let clickCallback = this.selectColumns.bind(this, _curCol);
-			_headingTable.children[0].children[_curCol].addEventListener("click", clickCallback);
-		}
-
-		_horizontalHeadingTables.push(_headingTable);
-		_container.appendChild(_headingTable);
-		_wrapper.appendChild(_container);
-		_stageContainer.appendChild(_wrapper);
-	}
-	function createVerticalHeading() {
-		// if querySelector.... not exists....
-		let _data = [];
-		let _columns = 1;
-		let _rows = _defaultOptions.numberOfRows;
-
-		for(let _curRow = 1; _curRow <= _rows; _curRow++) {
-			let _row = [];
-			let _newCell = {
-				textContent: _curRow,
-			}
-			_row.push(_newCell);
-			_data.push(_row);
-		}
-
-
-
-		let _wrapper = DOMManager.createDiv();
-		_wrapper.classList.add("SpreadSheet--vertical_heading_wrapper");
-		let _cornerHeading = _stageContainer.querySelector(".SpreadSheet--corner_heading_wrapper");
-		let _cornerHeadingBCR = _cornerHeading.getBoundingClientRect();
-		let _heightCalc = _cornerHeadingBCR.height + _scrollBarHeight;
-		_wrapper.style.cssText = "height: calc(100% - " + _heightCalc + "px); width: " + _cornerHeadingBCR.width + "px; top: " + _cornerHeadingBCR.height + "px";
-
-		let _container = DOMManager.createDiv();
-		_container.classList.add("SpreadSheet--vertical_heading_container");
-
-		let isSyncingDataContainer = false;
-		let isSyncingContainer = false;
-
-		_dataContainer.addEventListener("scroll", function(evt) {
-			if (!isSyncingDataContainer) {
-				isSyncingContainer = true;
-				_container.scrollTop = this.scrollTop;
-			}
-
-			isSyncingDataContainer = false;
-		});
-
-		_container.onscroll = function() {
-			if (!isSyncingContainer) {
-				isSyncingDataContainer = true;
-				_dataContainer.scrollTop = this.scrollTop;
-			}
-
-			isSyncingContainer = false;
-		}
-
-		let _headingTable = DOMManager.createTableFromData(_data);
-		_headingTable.classList.add("SpreadSheet--table");
-		_headingTable.classList.add("SpreadSheet--vertical_heading_table");
-		_headingTable.style.cssText = "width: " + _cornerHeadingBCR.width + "px";
-
-		let _useCustomCursor = _defaultOptions.modules.cursor;
-		if(_useCustomCursor) {
-			_headingTable.classList.add("SpreadSheet--vertical_heading_table_cursor");
-		}
-
-
-		_container.appendChild(_headingTable);
-		_wrapper.appendChild(_container);
-		_stageContainer.appendChild(_wrapper);
-	}
-	function createCornerHeading() {
-		let _data = [];
-		let _row = [];
-		let _cell = {
-			textContent: "network_cell",
-		}
-		_row.push(_cell);
-		_data.push(_row);
-
-		let _wrapper = DOMManager.createDiv();
-		_wrapper.classList.add("SpreadSheet--corner_heading_wrapper");
-
-		let _headingTable = DOMManager.createTableFromData(_data);
-		_headingTable.classList.add("SpreadSheet--table");
-		_headingTable.classList.add("SpreadSheet--corner_heading_table");
-
-		_wrapper.appendChild(_headingTable);
-		_stageContainer.appendChild(_wrapper);
-	}
-	function createHeadings() {
-		let _cornerHeading = _stageContainer.querySelector(".SpreadSheet--corner_heading_wrapper");
-		if(!_cornerHeading) {
-			createCornerHeading.call(this);
-		}
-
-		let _horzHeading = _stageContainer.querySelector(".SpreadSheet--horizontal_heading_wrapper");
-		if(!_horzHeading) {
-			createHorizontalHeading.call(this);
-		}
-
-		let _vertHeading = _stageContainer.querySelector(".SpreadSheet--vertical_heading_wrapper");
-		if(!_vertHeading) {
-			createVerticalHeading.call(this);
-		}
-	}
+	
 	function getHorizontalHeadingTable(columnIndex) {
 		// if frozen columns, different...
 		return _horizontalHeadingTables[0];
@@ -279,11 +98,19 @@ function SpreadSheet(parentElement, options) {
 			return _stageContainer;
 		}
 	});
+	Object.defineProperty(SpreadSheet.prototype, 'columns', {
+		get: function() { 
+			return _defaultOptions.numberOfColumns;
+		}
+	});
+	Object.defineProperty(SpreadSheet.prototype, 'rows', {
+		get: function() { 
+			return _defaultOptions.numberOfRows;
+		}
+	});
 
 
 	SpreadSheet.prototype.createEmptySheet = function() {
-		createHeadings.call(this);
-
 		let _numberOfColumns = _defaultOptions.numberOfColumns;
 		let _numberOfRows = _defaultOptions.numberOfRows;
 		let _rows = {
@@ -327,10 +154,6 @@ function SpreadSheet(parentElement, options) {
 
 
 	SpreadSheet.prototype.createSheetFromData = function(data) {
-		createVerticalHeading();
-		createHorizontalHeading();
-		createCornerHeading();
-
 		_data = data;
 		let _table = DOMManager.createTableFromData(_data);
 		_table.classList.add("SpreadSheet--table");
@@ -504,8 +327,349 @@ function SpreadSheet(parentElement, options) {
 		}
 	}
 
+
+	SpreadSheet.prototype.loadModules = function(modules) {
+		if(modules && modules.constructor === Array) {
+			let numberOfModulesToLoad = modules.length;
+
+			for(let curModule = 0; curModule < numberOfModulesToLoad; curModule++) {
+				let loadModuleEvent = new CustomEvent("useModule_" + modules[curModule], {
+					detail: this, 
+				});
+				document.dispatchEvent(loadModuleEvent);
+			}
+		} else {
+			throw new Error("Cannot load the specified modules.");
+		}
+	}
+
 	return new SpreadSheet(parentElement, options);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+let HeadingsManager = (function() {
+	let spreadsheet = null;
+	let stage = null;
+	let dataContainer = null;
+
+	// 	Classes:
+	let _CORNERWRAPPER 			= "SpreadSheet--corner_heading_wrapper",
+		_CORNERTABLE 			= "SpreadSheet--corner_heading_table",
+	 	_HORIZONTALWRAPPER 		= "SpreadSheet--horizontal_heading_wrapper",
+	 	_HORIZONTALCONTAINER 	= "SpreadSheet--horizontal_heading_container",
+	 	_HORIZONTALTABLE 		= "SpreadSheet--horizontal_heading_table",
+	 	_VERTICALWRAPPER 		= "SpreadSheet--vertical_heading_wrapper",
+	 	_VERTICALCONTAINER 		= "SpreadSheet--vertical_heading_container",
+	 	_VERTICALTABLE 			= "SpreadSheet--vertical_heading_table",
+	 	_TABLE 					= "SpreadSheet--table";
+
+
+	document.addEventListener("useModule_headings", function(evt) {
+		spreadsheet = evt.detail;
+		if(spreadsheet instanceof SpreadSheet) {
+			// 	We're good to go!
+			stage = spreadsheet.stage;
+			dataContainer = spreadsheet.dataContainer;
+			createHeadings();
+		} else {
+			throw new Error("Cannot load the HeadingsManager module without a valid SpreadSheet argument.");
+		}
+	});
+
+	function createHeadings() {
+		let cornerHeading = stage.querySelector("." + _CORNERWRAPPER);
+		if(!cornerHeading) {
+			createCornerHeading();
+		}
+
+		let horizontalHeading = stage.querySelector("." + _HORIZONTALWRAPPER);
+		if(!horizontalHeading) {
+			createHorizontalHeading();
+		}
+
+		let verticalHeading = stage.querySelector("." + _VERTICALWRAPPER);
+		if(!verticalHeading) {
+			createVerticalHeading();
+		}
+
+		//	no no no, no es bueno... should fire an event and something else should update the position of the left_data_table_wrapper....
+		let dataWrapper = dataContainer.querySelector(".SpreadSheet--left_data_table_wrapper");
+		if(dataWrapper) {
+			cornerHeading = stage.querySelector("." + _CORNERWRAPPER);
+			let cornerHeadingBCR = cornerHeading.getBoundingClientRect();
+			dataWrapper.style.cssText = "left: " + cornerHeadingBCR.width + "px; top: " + cornerHeadingBCR.height + "px";
+		}
+	}
+
+	function createCornerHeading() {
+		let wrapper = DOMManager.createDiv();
+		wrapper.classList.add(_CORNERWRAPPER);
+
+		let data = [];
+		let row = [];
+		let cell = {
+			textContent: "network_cell",
+		}
+		row.push(cell);
+		data.push(row);
+
+		let table = DOMManager.createTableFromData(data);
+		table.classList.add(_TABLE);
+		table.classList.add(_CORNERTABLE);
+
+		wrapper.appendChild(table);
+		stage.appendChild(wrapper);
+	}
+
+	function createHorizontalHeading() {
+		/**//////	Let's create the containers:
+		/**//////		Since the SPREADSHEET may have a lot of columns,
+		/**//////		the total width of the horizontal heading table
+		/**//////		may be larger than the width of SPREADSHEET's
+		/**//////		STAGE div.
+		/**//////		As such, the horizontal heading table will be put 
+		/**//////		inside an horizontally scrollable CONTAINER. This
+		/**//////		CONTAINER will be put inside a WRAPPER which will
+		/**//////		hide the CONTAINER's scrollbar.
+		/**/	let wrapper = DOMManager.createDiv();
+		/**/	wrapper.classList.add(_HORIZONTALWRAPPER);
+		/**/
+		/**/	let cornerHeading = stage.querySelector("." + _CORNERWRAPPER);
+		/**/	let cornerHeadingBCR = cornerHeading.getBoundingClientRect();
+		/**/	let widthCalc = cornerHeadingBCR.width + DOMManager.scrollbarSize.width;
+		/**/	wrapper.style.cssText = "width: calc(100% - " + widthCalc + "px); left: " + cornerHeadingBCR.width + "px; height: " + cornerHeadingBCR.height + "px;";
+		/**/
+		/**/	let container = DOMManager.createDiv();
+		/**/	container.classList.add(_HORIZONTALCONTAINER);
+		/**//////
+
+		/**//////	Let's make sure the scrolling behaviour is correct:
+		/**//////		The WRAPPER will be a child of SPREADSHEET's
+		/**//////		STAGE rather than DATACONTAINER. As such, by 
+		/**//////		default, when scrolling the DATACONTAINER div the
+		/**//////		CONTAINER will not scroll and we may end up in a
+		/**//////		situation where, for example, the horizontal 
+		/**////// 		heading table is showing columns A to J but the 
+		/**//////		DATATABLE inside DATACONTAINER is actually showing 
+		/**////// 		columns AE to AN.
+		/**//////		Now, why is the WRAPPER a child of STAGE rather 
+		/**//////		than DATACONTAINER? So that when the DATACONTAINER
+		/**//////		is scrolled vertically, the horizontal heading 
+		/**//////		doesn't disappear, i.e.: it will behave as a frozen
+		/**//////		row.
+		/**//////		The CONTAINER's scrollLeft value needs to be the
+		/**//////		same as the SPREADSHEET's DATACONTAINER scrollLeft
+		/**//////		value. 
+		/**/	let isSyncingDataContainer = false;
+		/**/	let isSyncingContainer = false;
+		/**/	dataContainer.addEventListener("scroll", function(evt) {
+		/**/		if (!isSyncingDataContainer) {
+		/**/			isSyncingContainer = true;
+		/**/			container.scrollLeft = this.scrollLeft;
+		/**/		}
+		/**/
+		/**/		isSyncingDataContainer = false;
+		/**/	});
+		/**/
+		/**/	container.addEventListener("scroll", function(evt) {
+		/**/		if (!isSyncingContainer) {
+		/**/			isSyncingDataContainer = true;
+		/**/			_dataContainer.scrollLeft = this.scrollLeft;
+		/**/		}
+		/**/
+		/**/		isSyncingContainer = false;
+		/**/	});
+		/**//////
+
+		/**//////	Let's create the data aka the columns names:
+		/**/	let data = [];
+		/**/	let row = [];
+		/**/	let columns = spreadsheet.columns;
+		/**/	for(let curColumn = 1; curColumn <= columns; curColumn++) {
+		/**/		let newCell = {
+		/**/			textContent: DataManager.convertNumberToColumnName(curColumn),
+		/**/		}
+		/**/		row.push(newCell);
+		/**/	}
+		/**/	data.push(row);
+		/**//////
+
+		/**//////	Let's create the actual HTML table element:
+		/**/	let table = DOMManager.createTableFromData(data);
+		/**/	table.classList.add(_TABLE);
+		/**/	table.classList.add(_HORIZONTALTABLE);
+		/**/	table.style.cssText = "height: " + cornerHeadingBCR.height + "px";
+		/**//////
+
+		/**//////	Let's set the right DOM hierarchy:
+		/**/	container.appendChild(table);
+		/**/	wrapper.appendChild(container);
+		/**/	stage.appendChild(wrapper);
+		/**//////
+	}
+
+	function createVerticalHeading() {
+		/**//////	Let's create the containers:
+		/**//////		Since the SPREADSHEET may have a lot of rows,
+		/**//////		the total height of the vertical heading table
+		/**//////		may be larger than the height of SPREADSHEET's
+		/**//////		STAGE div.
+		/**//////		As such, the vertical heading table will be put 
+		/**//////		inside a vertically scrollable CONTAINER. This
+		/**//////		CONTAINER will be put inside a WRAPPER which will
+		/**//////		hide the CONTAINER's scrollbar.
+		/**/	let wrapper = DOMManager.createDiv();
+		/**/	wrapper.classList.add(_VERTICALWRAPPER);
+		/**/
+		/**/	let cornerHeading = stage.querySelector("." + _CORNERWRAPPER);
+		/**/	let cornerHeadingBCR = cornerHeading.getBoundingClientRect();
+		/**/	let heightCalc = cornerHeadingBCR.height + DOMManager.scrollbarSize.height;
+		/**/	wrapper.style.cssText = "height: calc(100% - " + heightCalc + "px); width: " + cornerHeadingBCR.width + "px; top: " + cornerHeadingBCR.height + "px;";
+		/**/
+		/**/	let container = DOMManager.createDiv();
+		/**/	container.classList.add(_VERTICALCONTAINER);
+		/**//////
+
+		/**//////	Let's make sure the scrolling behaviour is correct:
+		/**//////		The WRAPPER will be a child of SPREADSHEET's
+		/**//////		STAGE rather than DATACONTAINER. As such, by 
+		/**//////		default, when scrolling the DATACONTAINER div the
+		/**//////		CONTAINER will not scroll and we may end up in a
+		/**//////		situation where, for example, the vertical 
+		/**////// 		heading table is showing rows 1 to 100 but the 
+		/**//////		DATATABLE inside DATACONTAINER is actually showing 
+		/**////// 		rows 301 to 400.
+		/**//////		Now, why is the WRAPPER a child of STAGE rather 
+		/**//////		than DATACONTAINER? So that when the DATACONTAINER
+		/**//////		is scrolled horizontally, the vertical heading 
+		/**//////		doesn't disappear, i.e.: it will behave as a frozen
+		/**//////		column.
+		/**//////		The CONTAINER's scrollTop value needs to be the
+		/**//////		same as the SPREADSHEET's DATACONTAINER scrollTop
+		/**//////		value. 
+		/**/	let isSyncingDataContainer = false;
+		/**/	let isSyncingContainer = false;
+		/**/	dataContainer.addEventListener("scroll", function(evt) {
+		/**/		if (!isSyncingDataContainer) {
+		/**/			isSyncingContainer = true;
+		/**/			container.scrollTop = this.scrollTop;
+		/**/		}
+		/**/
+		/**/		isSyncingDataContainer = false;
+		/**/	});
+		/**/
+		/**/	container.addEventListener("scroll", function(evt) {
+		/**/		if (!isSyncingContainer) {
+		/**/			isSyncingDataContainer = true;
+		/**/			_dataContainer.scrollTop = this.scrollTop;
+		/**/		}
+		/**/
+		/**/		isSyncingContainer = false;
+		/**/	});
+		/**//////
+
+		/**//////	Let's create the data aka the rows numbers:
+		/**/	let data = [];
+		/**/	let rows = spreadsheet.rows;
+		/**/	let columns = 1;
+		/**/	for(let curRow = 1; curRow <= rows; curRow++) {
+		/**/		let row = [];
+		/**/		let newCell = {
+		/**/			textContent: curRow,
+		/**/		}
+		/**/		row.push(newCell);
+		/**/		data.push(row);
+		/**/	}
+		/**//////
+
+		/**//////	Let's create the actual HTML table element:
+		/**/	let table = DOMManager.createTableFromData(data);
+		/**/	table.classList.add(_TABLE);
+		/**/	table.classList.add(_VERTICALTABLE);
+		/**/	table.style.cssText = "width: " + cornerHeadingBCR.width + "px";
+		/**//////
+
+		/**//////	Let's set the right DOM hierarchy:
+		/**/	container.appendChild(table);
+		/**/	wrapper.appendChild(container);
+		/**/	stage.appendChild(wrapper);
+		/**//////
+	}
+})();
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -606,192 +770,225 @@ let DataManager = {
 
 
 
+let DOMManager = (function() {
+	let _scrollBarSize = {
+		width: null,
+		height: null,
+	};
 
-
-
-let DOMManager = {
-	createDiv: function() {
+	function _createDiv() {
 		let _div = document.createElement("div");
 		return _div;
-	},
+	}
+
+	function _calculateScrollbarDimensions() {
+		let _tempScrollContainer = _createDiv();
+		_tempScrollContainer.style.cssText += "position: relative; top: 0;" + 
+					"left: 0;width: 100%; height: 100%; overflow: scroll;" +
+					"visibility: hidden; opacity: 0;"
+		document.body.appendChild(_tempScrollContainer);
+
+		let _tempScrollContainerBCR = _tempScrollContainer.getBoundingClientRect();
+		_scrollBarSize.width = _tempScrollContainerBCR.width - _tempScrollContainer.clientWidth;
+		_scrollBarSize.height = _tempScrollContainerBCR.height - _tempScrollContainer.clientHeight;
+
+		document.body.removeChild(_tempScrollContainer);
+	}
+
+	// document.addEventListener("DOMContentLoaded", _calculateScrollbarDimensions);
 
 
-	createTableFromData: function(data) {
-		/*
-			data = {
-				thead: [rowDataObj],
-				tbody: [rowDataObj],
-				tfoot: [rowDataObj],
-			};
-			OR
-			data = [rowDataObj],
-			rowDataObj = {
-				height: 10,
-				style: cssText,
-				rowData: [cellDataObj],
-			};
-			or
-			rowDataObj = [cellDataObj],
-			cellDataObj = {
-				textContent: 'text', ???
-				innerHTML: '<b>me',
-				colspan: 2,
-				style: cssText,
+	let DOMManager = {
+		createDiv: _createDiv,
+
+		get scrollbarSize() {
+			if(_scrollBarSize.width === null) {
+				_calculateScrollbarDimensions();
 			}
-		*/
 
-		if(!data) {
-			throw new Error("Cannot create a table without data.");
-		}
+			return _scrollBarSize;
+		},
+
+		createTableFromData: function(data) {
+			/*
+				data = {
+					thead: [rowDataObj],
+					tbody: [rowDataObj],
+					tfoot: [rowDataObj],
+				};
+				OR
+				data = [rowDataObj],
+				rowDataObj = {
+					height: 10,
+					style: cssText,
+					rowData: [cellDataObj],
+				};
+				or
+				rowDataObj = [cellDataObj],
+				cellDataObj = {
+					textContent: 'text', ???
+					innerHTML: '<b>me',
+					colspan: 2,
+					style: cssText,
+				}
+			*/
+
+			if(!data) {
+				throw new Error("Cannot create a table without data.");
+			}
 
 
 
-		let _table = document.createElement("table");
-		let _numberOfColumns = DataManager.countColumns(data);
-		let _createdColumns = 0;
+			let _table = document.createElement("table");
+			let _numberOfColumns = DataManager.countColumns(data);
+			let _createdColumns = 0;
 
-		if(data.constructor === Array) {
-			let _numberOfRows = data.length;
-			for(let _curRow = 0; _curRow < _numberOfRows; _curRow++) {
-				let _newRow = document.createElement("tr");
-				_createdColumns = 0;
-				if(data[_curRow].constructor === Array) {
-					for(let _curCol = 0; _curCol < _numberOfColumns; _curCol++) {
-						if(_createdColumns > _numberOfColumns) {
-							continue;
-						}
-						let _newCell = null;
-						if(_curRow === 0) {
-							_newCell = document.createElement("th");
-						} else {
-							_newCell = document.createElement("td");
-						}
-
-						if(data[_curRow][_curCol]) {
-							_newCell.textContent = data[_curRow][_curCol].textContent;
-							if('colspan' in data[_curRow][_curCol] && Number.isInteger(data[_curRow][_curCol].colspan)) {
-								_newCell.colSpan = data[_curRow][_curCol].colspan.toString();
-								_createdColumns += data[_curRow][_curCol].colspan;
+			if(data.constructor === Array) {
+				let _numberOfRows = data.length;
+				for(let _curRow = 0; _curRow < _numberOfRows; _curRow++) {
+					let _newRow = document.createElement("tr");
+					_createdColumns = 0;
+					if(data[_curRow].constructor === Array) {
+						for(let _curCol = 0; _curCol < _numberOfColumns; _curCol++) {
+							if(_createdColumns > _numberOfColumns) {
+								continue;
 							}
-						} else {
-							_newCell.textContent = "";
-						}
-
-						_newRow.appendChild(_newCell);
-						_createdColumns += 1;
-
-					}
-				} else if(data[_curRow].constructor === Object && 'rowData' in data[_curRow]) {
-					for(let _curCol = 0; _curCol < _numberOfColumns; _curCol++) {
-						if(_createdColumns > _numberOfColumns) {
-							continue;
-						}
-						let _newCell = null;
-						if(_curRow === 0) {
-							_newCell = document.createElement("th");
-						} else {
-							_newCell = document.createElement("td");
-						}
-
-						if(data[_curRow].rowData[_curCol]) {
-							_newCell.textContent = data[_curRow].rowData[_curCol].textContent;
-							if('colspan' in data[_curRow].rowData[_curCol] && Number.isInteger(data[_curRow].rowData[_curCol].colspan)) {
-								_newCell.colSpan = data[_curRow].rowData[_curCol].colspan.toString();
-								_createdColumns += data[_curRow].rowData[_curCol].colspan;
+							let _newCell = null;
+							if(_curRow === 0) {
+								_newCell = document.createElement("th");
+							} else {
+								_newCell = document.createElement("td");
 							}
-						} else {
-							_newCell.textContent = "";
-						}
 
-						_newRow.appendChild(_newCell);
-						_createdColumns += 1;
+							if(data[_curRow][_curCol]) {
+								_newCell.textContent = data[_curRow][_curCol].textContent;
+								if('colspan' in data[_curRow][_curCol] && Number.isInteger(data[_curRow][_curCol].colspan)) {
+									_newCell.colSpan = data[_curRow][_curCol].colspan.toString();
+									_createdColumns += data[_curRow][_curCol].colspan;
+								}
+							} else {
+								_newCell.textContent = "";
+							}
+
+							_newRow.appendChild(_newCell);
+							_createdColumns += 1;
+
+						}
+					} else if(data[_curRow].constructor === Object && 'rowData' in data[_curRow]) {
+						for(let _curCol = 0; _curCol < _numberOfColumns; _curCol++) {
+							if(_createdColumns > _numberOfColumns) {
+								continue;
+							}
+							let _newCell = null;
+							if(_curRow === 0) {
+								_newCell = document.createElement("th");
+							} else {
+								_newCell = document.createElement("td");
+							}
+
+							if(data[_curRow].rowData[_curCol]) {
+								_newCell.textContent = data[_curRow].rowData[_curCol].textContent;
+								if('colspan' in data[_curRow].rowData[_curCol] && Number.isInteger(data[_curRow].rowData[_curCol].colspan)) {
+									_newCell.colSpan = data[_curRow].rowData[_curCol].colspan.toString();
+									_createdColumns += data[_curRow].rowData[_curCol].colspan;
+								}
+							} else {
+								_newCell.textContent = "";
+							}
+
+							_newRow.appendChild(_newCell);
+							_createdColumns += 1;
+						}
+					}
+					_table.appendChild(_newRow);
+				}
+			}
+
+			return _table;
+		},
+
+		createEmptyTable: function(rows, columns) {
+			/*
+				rows:
+					- integer
+					- object: {
+						[header]: integer,
+						[body]: integer,
+						[footer]: integer,
+					}
+				columns:
+					- integer
+			*/
+
+
+			if(!Number.isInteger(columns) || columns < 1) {
+				throw new Error("The number of columns needs to be a positive integer number.");
+			}
+
+
+			if(!Number.isInteger(rows) && !(rows.constructor === Object)) {
+				throw new Error("The number of rows needs to be defined as a positive integer number or as a rowsObject.");
+			} else if(Number.isInteger(rows) && rows < 0) {
+				throw new Error("The number of rows needs to be a positive integer number.");
+			}
+
+			let _createHeader = (rows.constructor === Object && 'header' in rows) ? true : false;
+			let _createBody = (rows.constructor === Object && 'body' in rows) ? true : false;
+
+
+			let _table = document.createElement("table");
+			if(Number.isInteger(rows)) {
+				let _tableCells = createCellsArray(rows, columns);
+				_table.appendChild(_tableCells);
+			} else {
+				let _tableHeader = _createHeader ? document.createElement("thead") : null;
+				let _tableBody = _createBody ? document.createElement("tbody") : null;
+				if(_createHeader) {
+					if(Number.isInteger(rows.header) && rows.header >= 0) {
+						let _headerCells = createCellsArray(rows.header, columns, true);
+						_tableHeader.appendChild(_headerCells);
+						_table.appendChild(_tableHeader);
+					} else {
+						throw new Error("The number of rows of the table header needs to be a positive integer number.");
 					}
 				}
-				_table.appendChild(_newRow);
-			}
-		}
 
-		return _table;
-	},
-
-	createEmptyTable: function(rows, columns) {
-		/*
-			rows:
-				- integer
-				- object: {
-					[header]: integer,
-					[body]: integer,
-					[footer]: integer,
-				}
-			columns:
-				- integer
-		*/
-
-
-		if(!Number.isInteger(columns) || columns < 1) {
-			throw new Error("The number of columns needs to be a positive integer number.");
-		}
-
-
-		if(!Number.isInteger(rows) && !(rows.constructor === Object)) {
-			throw new Error("The number of rows needs to be defined as a positive integer number or as a rowsObject.");
-		} else if(Number.isInteger(rows) && rows < 0) {
-			throw new Error("The number of rows needs to be a positive integer number.");
-		}
-
-		let _createHeader = (rows.constructor === Object && 'header' in rows) ? true : false;
-		let _createBody = (rows.constructor === Object && 'body' in rows) ? true : false;
-
-
-		let _table = document.createElement("table");
-		if(Number.isInteger(rows)) {
-			let _tableCells = createCellsArray(rows, columns);
-			_table.appendChild(_tableCells);
-		} else {
-			let _tableHeader = _createHeader ? document.createElement("thead") : null;
-			let _tableBody = _createBody ? document.createElement("tbody") : null;
-			if(_createHeader) {
-				if(Number.isInteger(rows.header) && rows.header >= 0) {
-					let _headerCells = createCellsArray(rows.header, columns, true);
-					_tableHeader.appendChild(_headerCells);
-					_table.appendChild(_tableHeader);
-				} else {
-					throw new Error("The number of rows of the table header needs to be a positive integer number.");
+				if(_createBody) {
+					if(Number.isInteger(rows.body) && rows.body >= 0) {
+						let _bodyCells = createCellsArray(rows.body, columns);
+						_tableBody.appendChild(_bodyCells);
+						_table.appendChild(_tableBody);
+					} else {
+						throw new Error("The number of rows of the table body needs to be a positive integer number.");
+					}
 				}
 			}
 
-			if(_createBody) {
-				if(Number.isInteger(rows.body) && rows.body >= 0) {
-					let _bodyCells = createCellsArray(rows.body, columns);
-					_tableBody.appendChild(_bodyCells);
-					_table.appendChild(_tableBody);
-				} else {
-					throw new Error("The number of rows of the table body needs to be a positive integer number.");
+
+
+			function createCellsArray(numberOfRows, numberOfColumns, thCells) {
+				let _fragment = document.createDocumentFragment();
+
+				for(let _curRow = 0; _curRow < numberOfRows; _curRow++) {
+					let _row = document.createElement("tr");
+
+					for(let _curCol = 0; _curCol < numberOfColumns; _curCol++) {
+						let _cell = thCells ? document.createElement("th") : document.createElement("td");
+						_row.appendChild(_cell);
+					}
+
+					_fragment.appendChild(_row);
 				}
+				return _fragment;
 			}
-		}
 
+			return _table;
+		},
+	};
 
+	return DOMManager;
+})();
 
-		function createCellsArray(numberOfRows, numberOfColumns, thCells) {
-			let _fragment = document.createDocumentFragment();
-
-			for(let _curRow = 0; _curRow < numberOfRows; _curRow++) {
-				let _row = document.createElement("tr");
-
-				for(let _curCol = 0; _curCol < numberOfColumns; _curCol++) {
-					let _cell = thCells ? document.createElement("th") : document.createElement("td");
-					_row.appendChild(_cell);
-				}
-
-				_fragment.appendChild(_row);
-			}
-			return _fragment;
-		}
-
-		return _table;
-	},
-};
 
 
 
