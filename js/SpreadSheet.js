@@ -16,6 +16,9 @@ function SpreadSheet(parentElement, options) {
 	let _parentElementChangedEvent = null;
 	let _data = null;
 
+	let _horizontalHeadingTables = [];
+	let _verticalHeadingTables = [];
+
 	let _defaultOptions = {
 		modules: {
 			cursor: true,
@@ -31,10 +34,26 @@ function SpreadSheet(parentElement, options) {
 	};
 
 	let _userOptions = null;
+	let _scrollBarWidth = 0;
+	let _scrollBarHeight = 0;
 
 
 
 	// 	Private methods:
+
+	function calculateScrollbarDimensions() {
+		let _tempScrollContainer = DOMManager.createDiv();
+		_tempScrollContainer.classList.add("SpreadSheet--temporary_container");
+		document.body.appendChild(_tempScrollContainer);
+
+		let _tempScrollContainerBCR = _tempScrollContainer.getBoundingClientRect();
+		_scrollBarWidth = _tempScrollContainerBCR.width - _tempScrollContainer.clientWidth;
+		_scrollBarHeight = _tempScrollContainerBCR.height - _tempScrollContainer.clientHeight;
+
+		document.body.removeChild(_tempScrollContainer);
+	}
+
+
 	function parseContainer(containerEl) {
 		if(containerEl) {		
 			if(containerEl.tagName && containerEl.tagName.toLowerCase() === "div") {
@@ -48,6 +67,8 @@ function SpreadSheet(parentElement, options) {
 				throw new Error("SpreadSheet objects shall be contained in DIV elements.");
 			}
 		}
+
+		calculateScrollbarDimensions();
 	}
 	function createHorizontalHeading() {
 		// if querySelector.... not exists....
@@ -91,12 +112,21 @@ function SpreadSheet(parentElement, options) {
 			isSyncingContainer = false;
 		}
 
-
-
 		let _headingTable = DOMManager.createTableFromData(_data);
 		_headingTable.classList.add("SpreadSheet--table");
 		_headingTable.classList.add("SpreadSheet--horizontal_heading_table");
 
+		let _useCustomCursor = _defaultOptions.modules.cursor;
+		if(_useCustomCursor) {
+			_headingTable.classList.add("SpreadSheet--horizontal_heading_table_cursor");
+		}
+
+		for(let _curCol = 0; _curCol < _columns; _curCol++) {
+			let clickCallback = this.selectColumn.bind(this, _curCol);
+			_headingTable.children[0].children[_curCol].addEventListener("click", clickCallback);
+		}
+
+		_horizontalHeadingTables.push(_headingTable);
 		_container.appendChild(_headingTable);
 		_wrapper.appendChild(_container);
 		_stageContainer.appendChild(_wrapper);
@@ -149,6 +179,12 @@ function SpreadSheet(parentElement, options) {
 		_headingTable.classList.add("SpreadSheet--table");
 		_headingTable.classList.add("SpreadSheet--vertical_heading_table");
 
+		let _useCustomCursor = _defaultOptions.modules.cursor;
+		if(_useCustomCursor) {
+			_headingTable.classList.add("SpreadSheet--vertical_heading_table_cursor");
+		}
+
+
 		_container.appendChild(_headingTable);
 		_wrapper.appendChild(_container);
 		_stageContainer.appendChild(_wrapper);
@@ -175,19 +211,23 @@ function SpreadSheet(parentElement, options) {
 	function createHeadings() {
 		let _horzHeading = _stageContainer.querySelector(".SpreadSheet--horizontal_heading_wrapper");
 		if(!_horzHeading) {
-			createHorizontalHeading();
+			createHorizontalHeading.call(this);
 		}
 
 		let _vertHeading = _stageContainer.querySelector(".SpreadSheet--vertical_heading_wrapper");
 		if(!_vertHeading) {
-			createVerticalHeading();
+			createVerticalHeading.call(this);
 		}
 
 		let _cornerHeading = _stageContainer.querySelector(".SpreadSheet--corner_heading_wrapper");
 		if(!_cornerHeading) {
-			createCornerHeading();
+			createCornerHeading.call(this);
 		}
 
+	}
+	function getHorizontalHeadingTable(columnIndex) {
+		// if frozen columns, different...
+		return _horizontalHeadingTables[0];
 	}
 
 
@@ -233,8 +273,7 @@ function SpreadSheet(parentElement, options) {
 
 
 	SpreadSheet.prototype.createEmptySheet = function() {
-		createHorizontalHeading();
-		createHeadings();
+		createHeadings.call(this);
 
 		let _numberOfColumns = _defaultOptions.numberOfColumns;
 		let _numberOfRows = _defaultOptions.numberOfRows;
@@ -293,6 +332,23 @@ function SpreadSheet(parentElement, options) {
 		_dataContainer.insertBefore(_container, _dataContainer.children[0]);
 
 		// _dataContainer.appendChild(_container);
+	}
+
+
+
+
+
+
+
+	SpreadSheet.prototype.selectColumn = function(columnIndex) {
+		let _selectedColumnSyle = "SpreadSheet--horizontal_heading_cell_selected";
+		let _selectedColumns = _stageContainer.querySelector("." + _selectedColumnSyle);
+		if(_selectedColumns) {
+			_selectedColumns.classList.remove(_selectedColumnSyle);
+		}
+
+		let _horzHeadingTable = getHorizontalHeadingTable(columnIndex);
+		_selectionManager.selectColumn(columnIndex, _horzHeadingTable, _selectedColumnSyle);
 	}
  
 
@@ -840,6 +896,11 @@ function SelectedCellsManager(SpreadSheet) {
 	}
 	SelectedCellsManager.prototype = Object.create(this.constructor.prototype);
 	SelectedCellsManager.prototype.constructor = SelectedCellsManager;
+
+
+	SelectedCellsManager.prototype.selectColumn = function(columnIndex, table, styleClass) {
+		table.children[0].children[columnIndex].classList.add(styleClass);
+	}
 
 	return new SelectedCellsManager(SpreadSheet);
 }
