@@ -29,8 +29,8 @@ function SpreadSheet(parentElement, options) {
 		},
 
 		showHeadings: true,
-		numberOfColumns: 50,
-		numberOfRows: 50,
+		numberOfColumns: 80,
+		numberOfRows: 100,
 	};
 
 	let _userOptions = null;
@@ -86,6 +86,10 @@ function SpreadSheet(parentElement, options) {
 
 		let _wrapper = DOMManager.createDiv();
 		_wrapper.classList.add("SpreadSheet--horizontal_heading_wrapper");
+		let _cornerHeading = _stageContainer.querySelector(".SpreadSheet--corner_heading_wrapper");
+		let _cornerHeadingBCR = _cornerHeading.getBoundingClientRect();
+		let _widthCalc = _cornerHeadingBCR.width + _scrollBarWidth;
+		_wrapper.style.cssText = "width: calc(100% - " + _widthCalc + "px); left: " + _cornerHeadingBCR.width + "px; height: " + _cornerHeadingBCR.height + "px;";
 
 		let _container = DOMManager.createDiv();
 		_container.classList.add("SpreadSheet--horizontal_heading_container");
@@ -115,6 +119,7 @@ function SpreadSheet(parentElement, options) {
 		let _headingTable = DOMManager.createTableFromData(_data);
 		_headingTable.classList.add("SpreadSheet--table");
 		_headingTable.classList.add("SpreadSheet--horizontal_heading_table");
+		_headingTable.style.cssText = "height: " + _cornerHeadingBCR.height + "px";
 
 		let _useCustomCursor = _defaultOptions.modules.cursor;
 		if(_useCustomCursor) {
@@ -122,7 +127,7 @@ function SpreadSheet(parentElement, options) {
 		}
 
 		for(let _curCol = 0; _curCol < _columns; _curCol++) {
-			let clickCallback = this.selectColumn.bind(this, _curCol);
+			let clickCallback = this.selectColumns.bind(this, _curCol);
 			_headingTable.children[0].children[_curCol].addEventListener("click", clickCallback);
 		}
 
@@ -150,6 +155,10 @@ function SpreadSheet(parentElement, options) {
 
 		let _wrapper = DOMManager.createDiv();
 		_wrapper.classList.add("SpreadSheet--vertical_heading_wrapper");
+		let _cornerHeading = _stageContainer.querySelector(".SpreadSheet--corner_heading_wrapper");
+		let _cornerHeadingBCR = _cornerHeading.getBoundingClientRect();
+		let _heightCalc = _cornerHeadingBCR.height + _scrollBarHeight;
+		_wrapper.style.cssText = "height: calc(100% - " + _heightCalc + "px); width: " + _cornerHeadingBCR.width + "px; top: " + _cornerHeadingBCR.height + "px";
 
 		let _container = DOMManager.createDiv();
 		_container.classList.add("SpreadSheet--vertical_heading_container");
@@ -178,6 +187,7 @@ function SpreadSheet(parentElement, options) {
 		let _headingTable = DOMManager.createTableFromData(_data);
 		_headingTable.classList.add("SpreadSheet--table");
 		_headingTable.classList.add("SpreadSheet--vertical_heading_table");
+		_headingTable.style.cssText = "width: " + _cornerHeadingBCR.width + "px";
 
 		let _useCustomCursor = _defaultOptions.modules.cursor;
 		if(_useCustomCursor) {
@@ -209,6 +219,11 @@ function SpreadSheet(parentElement, options) {
 		_stageContainer.appendChild(_wrapper);
 	}
 	function createHeadings() {
+		let _cornerHeading = _stageContainer.querySelector(".SpreadSheet--corner_heading_wrapper");
+		if(!_cornerHeading) {
+			createCornerHeading.call(this);
+		}
+
 		let _horzHeading = _stageContainer.querySelector(".SpreadSheet--horizontal_heading_wrapper");
 		if(!_horzHeading) {
 			createHorizontalHeading.call(this);
@@ -218,12 +233,6 @@ function SpreadSheet(parentElement, options) {
 		if(!_vertHeading) {
 			createVerticalHeading.call(this);
 		}
-
-		let _cornerHeading = _stageContainer.querySelector(".SpreadSheet--corner_heading_wrapper");
-		if(!_cornerHeading) {
-			createCornerHeading.call(this);
-		}
-
 	}
 	function getHorizontalHeadingTable(columnIndex) {
 		// if frozen columns, different...
@@ -294,6 +303,13 @@ function SpreadSheet(parentElement, options) {
 			_data.push(newRowData);
 		}
 
+		let _wrapper = DOMManager.createDiv();
+		_wrapper.classList.add("SpreadSheet--left_data_table_wrapper");
+		let _cornerHeading = _stageContainer.querySelector(".SpreadSheet--corner_heading_wrapper");
+		if(_cornerHeading) {
+			let _cornerHeadingBCR = _cornerHeading.getBoundingClientRect();
+			_wrapper.style.cssText = "left: " + _cornerHeadingBCR.width + "px; top: " + _cornerHeadingBCR.height + "px";
+		}
 
 		let _table = DOMManager.createEmptyTable(_rows, _numberOfColumns);
 		_table.classList.add("SpreadSheet--table");
@@ -304,7 +320,9 @@ function SpreadSheet(parentElement, options) {
 			detail: this, 
 		});
 		document.dispatchEvent(_dataTablesChangedEvent);
-		_dataContainer.appendChild(_table);
+
+		_wrapper.appendChild(_table);
+		_dataContainer.appendChild(_wrapper);
 	}
 
 
@@ -340,15 +358,134 @@ function SpreadSheet(parentElement, options) {
 
 
 
-	SpreadSheet.prototype.selectColumn = function(columnIndex) {
-		let _selectedColumnSyle = "SpreadSheet--horizontal_heading_cell_selected";
-		let _selectedColumns = _stageContainer.querySelector("." + _selectedColumnSyle);
-		if(_selectedColumns) {
-			_selectedColumns.classList.remove(_selectedColumnSyle);
+	SpreadSheet.prototype.selectColumns = function(columnsIndexes) {
+		let _selectedColumnSyle = "SpreadSheet--horizontal_heading_column_selected";
+		let _selectedColumns = _stageContainer.querySelectorAll("." + _selectedColumnSyle);
+		if(_selectedColumns && _selectedColumns.length) {
+			let _numberOfSelectedColumns = _selectedColumns.length;
+			for(let _curCol = 0; _curCol < _numberOfSelectedColumns; _curCol++) {
+				_selectedColumns[_curCol].classList.remove(_selectedColumnSyle);
+			}
 		}
 
-		let _horzHeadingTable = getHorizontalHeadingTable(columnIndex);
-		_selectionManager.selectColumn(columnIndex, _horzHeadingTable, _selectedColumnSyle);
+		if(columnsIndexes.constructor === Array) {
+			let _numberOfColumns = columnsIndexes.length;
+			for(let _curCol = 0; _curCol < _numberOfColumns; _curCol++) {
+				let _horzHeadingTable = getHorizontalHeadingTable(columnsIndexes[_curCol]);
+				_selectionManager.selectColumn(columnsIndexes[_curCol], _horzHeadingTable, _selectedColumnSyle);
+			}
+		} else if(Number.isInteger(columnsIndexes)) {
+			let _horzHeadingTable = getHorizontalHeadingTable(columnsIndexes);
+			_selectionManager.selectColumn(columnsIndexes, _horzHeadingTable, _selectedColumnSyle);
+		} else {
+			throw new Error("Cannot select the specified columns.");
+		}
+	}
+
+	SpreadSheet.prototype.selectCell = function(cellIndexes) {
+		let _selectedCellHorizontalHeadingSyle = "SpreadSheet--horizontal_heading_cell_selected";
+		let _horzHeadingTable = _stageContainer.querySelector(".SpreadSheet--horizontal_heading_table");
+		if(_horzHeadingTable) {
+			_horzHeadingTable.children[0].children[cellIndexes.column].classList.add(_selectedCellHorizontalHeadingSyle);
+		}
+
+		let _selectedCellVerticalHeadingSyle = "SpreadSheet--vertical_heading_cell_selected";
+		let _vertHeadingTable = _stageContainer.querySelector(".SpreadSheet--vertical_heading_table");
+		if(_vertHeadingTable) {
+			_vertHeadingTable.children[cellIndexes.row].children[0].classList.add(_selectedCellVerticalHeadingSyle);
+		}
+
+		// _selectionManager.selectCell(cellIndexes.row, cellIndexes.column, _dataTables[0], "thead");
+	}
+
+	SpreadSheet.prototype.selectRange = function(range) {
+		/*
+			range = {
+				firstCellRow:
+				firstCellColumn:
+				lastCellRow:
+				lastCellColumn:
+			}
+		*/
+	}
+
+
+	SpreadSheet.prototype.clearSelection = function() {
+		/*	Clear selected cells styling*/
+		let _selectedColumnSyle = "SpreadSheet--horizontal_heading_column_selected";
+		let _selectedColumns = _stageContainer.querySelectorAll("." + _selectedColumnSyle);
+		if(_selectedColumns && _selectedColumns.length) {
+			let _numberOfSelectedColumns = _selectedColumns.length;
+			for(let _curCol = 0; _curCol < _numberOfSelectedColumns; _curCol++) {
+				_selectedColumns[_curCol].classList.remove(_selectedColumnSyle);
+			}
+		}
+
+		let _selectedCellHorizontalHeadingSyle = "SpreadSheet--horizontal_heading_cell_selected";
+		let _selectedCellsHorizontalHeading = _stageContainer.querySelectorAll("." + _selectedCellHorizontalHeadingSyle);
+		if(_selectedCellsHorizontalHeading && _selectedCellsHorizontalHeading.length) {
+			let _numberOfSelectedCells = _selectedCellsHorizontalHeading.length;
+			for(let _curCol = 0; _curCol < _numberOfSelectedCells; _curCol++) {
+				_selectedCellsHorizontalHeading[_curCol].classList.remove(_selectedCellHorizontalHeadingSyle);
+			}
+		}
+
+		let _selectedCellVerticalHeadingSyle = "SpreadSheet--vertical_heading_cell_selected";
+		let _selectedCellsVerticalHeading = _stageContainer.querySelectorAll("." + _selectedCellVerticalHeadingSyle);
+		if(_selectedCellsVerticalHeading && _selectedCellsVerticalHeading.length) {
+			let _numberOfSelectedCells = _selectedCellsVerticalHeading.length;
+			for(let _curRow = 0; _curRow < _numberOfSelectedCells; _curRow++) {
+				_selectedCellsVerticalHeading[_curRow].classList.remove(_selectedCellVerticalHeadingSyle);
+			}
+		}
+	}
+
+
+
+
+
+	SpreadSheet.prototype.getIndexes = function(cell) {
+		// if frozen columns, different....
+
+		let indexes = {
+			row: 0,
+			column: 0,
+		};
+
+/*		let _table = null;
+		if(	cell.parentElement.parentElement && cell.parentElement.parentElement.tagName &&
+			cell.parentElement.parentElement.tagName.toLowerCase() === "table") {
+				_table = cell.parentElement.parentElement;
+		} else if(	cell.parentElement.parentElement.parentElement && cell.parentElement.parentElement.parentElement.tagName &&
+					cell.parentElement.parentElement.parentElement.tagName.toLowerCase() === "table") {
+						_table = cell.parentElement.parentElement.parentElement;
+		} else {
+			throw new Error("Cannot");
+		}*/
+
+
+		for(let _curCol = 0; _curCol < cell.parentElement.children.length; _curCol++) {
+			if(cell.parentElement.children[_curCol] === cell) {
+				indexes.column = _curCol;
+			}
+		}
+
+		for(let _curRow = 0; _curRow < cell.parentElement.parentElement.children.length; _curRow++) {
+			if(cell.parentElement.parentElement.children[_curRow] === cell.parentElement) {
+				indexes.row = _curRow;
+			}
+		}
+
+
+		if(	cell.parentElement.parentElement && cell.parentElement.parentElement.tagName &&
+			cell.parentElement.parentElement.tagName.toLowerCase() === "tbody") {
+				let _hasHeader = cell.parentElement.parentElement.parentElement.getElementsByTagName("thead")[0];
+				if(_hasHeader) {
+					indexes.row += cell.parentElement.parentElement.parentElement.getElementsByTagName("thead")[0].children.length;
+				}
+		}
+
+		return indexes;
 	}
  
 
@@ -776,7 +913,7 @@ function SelectedCellsManager(SpreadSheet) {
 	let _validSelection = false;
 	let _updateHighlighterCallback = null;
 	let _cellsHighlighter = document.createElement("div");
-	_cellsHighlighter.classList.add("cellsHighlighter");
+	_cellsHighlighter.classList.add("SpreadSheet--cells_highlighter");
 
 	// 	Private methods:
 	function isValidSpreadSheet() {
@@ -805,6 +942,7 @@ function SelectedCellsManager(SpreadSheet) {
 		if(_validSelection) {
 			return;
 		}
+		SpreadSheet.clearSelection();
 		_validSelection = true;
 		_dataContainerInitialScrollTop = SpreadSheet.dataContainer.scrollTop;
 		_dataContainerInitialScrollLeft = SpreadSheet.dataContainer.scrollLeft;
@@ -856,8 +994,27 @@ function SelectedCellsManager(SpreadSheet) {
 
 	function redrawHighlighter() {
 		setTimeout(function() {
-			let _containerBCR = SpreadSheet.dataContainer.getBoundingClientRect();
+			
 
+			SpreadSheet.selectCell(SpreadSheet.getIndexes(_mouseUpTarget.target));
+			let mouseDownTargetIndexes = SpreadSheet.getIndexes(_mouseDownTarget.target);
+			let mouseUpTargetIndexes = SpreadSheet.getIndexes(_mouseUpTarget.target);
+			let additionalTopOffset = 0;
+			let additionalLeftOffset = 0;
+			if(mouseUpTargetIndexes.row === 0 || mouseDownTargetIndexes.row === 0) {
+				additionalTopOffset = -1;
+			}
+
+			if(mouseUpTargetIndexes.column === 0 || mouseDownTargetIndexes.column === 0) {
+				additionalLeftOffset = -1;
+			}
+
+
+
+
+
+
+			let _containerBCR = SpreadSheet.dataContainer.getBoundingClientRect();
 			let mouseDownTargetYPos = _mouseDownTarget.y + _windowInitialScrollTop - window.scrollY + _dataContainerInitialScrollTop;
 			let mouseDownTargetXPos = _mouseDownTarget.x + _windowInitialScrollLeft - window.scrollX + _dataContainerInitialScrollLeft;
 			let mouseUpTargetYPos = _mouseUpTarget.y + SpreadSheet.dataContainer.scrollTop;
@@ -870,10 +1027,12 @@ function SelectedCellsManager(SpreadSheet) {
 			
 			let leftOffset = (mouseDownTargetXPos < mouseUpTargetXPos) ? mouseDownTargetXPos : mouseUpTargetXPos;
 			leftOffset -= _containerBCR.x + 1;
-			let widthCalc = Math.abs(mouseUpTargetXPos - mouseDownTargetXPos) + 3 + rightTarget.width;
+			leftOffset += additionalLeftOffset;
+			let widthCalc = Math.abs(mouseUpTargetXPos - mouseDownTargetXPos) + 3 + rightTarget.width - additionalLeftOffset;
 			let topOffset = (mouseDownTargetYPos < mouseUpTargetYPos) ? mouseDownTargetYPos : mouseUpTargetYPos;
 			topOffset -= _containerBCR.y + 1;
-			let heightCalc = Math.abs(mouseUpTargetYPos - mouseDownTargetYPos) + 3 + bottomTarget.height;
+			topOffset += additionalTopOffset;
+			let heightCalc = Math.abs(mouseUpTargetYPos - mouseDownTargetYPos) + 3 + bottomTarget.height - additionalTopOffset;
 			_cellsHighlighter.style.cssText += 	"width: " + widthCalc + "px; " + 
 												"height: " + heightCalc + "px; " +
 												"left: " + leftOffset + "px; " +
@@ -898,8 +1057,73 @@ function SelectedCellsManager(SpreadSheet) {
 	SelectedCellsManager.prototype.constructor = SelectedCellsManager;
 
 
-	SelectedCellsManager.prototype.selectColumn = function(columnIndex, table, styleClass) {
-		table.children[0].children[columnIndex].classList.add(styleClass);
+	SelectedCellsManager.prototype.selectColumn = function(columnIndex, table, selectedStyleClass) {
+		let _containerBCR = SpreadSheet.dataContainer.getBoundingClientRect();
+		let _columnBCR = table.children[0].children[columnIndex].getBoundingClientRect();
+
+		let leftOffset;
+		let widthCalc;
+		let topOffset;
+		let heightCalc;
+
+		let _selectedColumns = SpreadSheet.stage.querySelectorAll("." + selectedStyleClass);
+		if(_selectedColumns && _selectedColumns.length) {
+			let _curHighlighterBCR= _cellsHighlighter.getBoundingClientRect();
+			leftOffset = _curHighlighterBCR.x - _containerBCR.x;
+			widthCalc = _curHighlighterBCR.width + _columnBCR.width;
+		} else {
+			leftOffset = _columnBCR.left - _containerBCR.x - 1 + SpreadSheet.dataContainer.scrollLeft;
+			widthCalc = _columnBCR.width + 3;
+		}
+
+		topOffset = _columnBCR.y + _columnBCR.height - _containerBCR.y;
+		heightCalc = _containerBCR.height - _columnBCR.height;
+
+
+		_cellsHighlighter.style.cssText += 	"width: " + widthCalc + "px; " + 
+											"height: " + heightCalc + "px; " +
+											"left: " + leftOffset + "px; " +
+											"top: " + topOffset + "px; " +
+											"visibility: visible";
+
+		table.children[0].children[columnIndex].classList.add(selectedStyleClass);
+	}
+
+
+	SelectedCellsManager.prototype.selectCell = function(rowIndex, columnIndex, table, tableLocation) {
+		let _containerBCR = SpreadSheet.dataContainer.getBoundingClientRect();
+		let _cellBCR = null;
+		if(table.getElementsByTagName("thead")[0] || table.getElementsByTagName("tbody")) {
+			if(tableLocation) {
+				_cellBCR = table.getElementsByTagName(tableLocation)[0].children[rowIndex].children[columnIndex].getBoundingClientRect();
+			} else {
+				throw new Error("Need to define the table location.");
+			}
+		} else {
+			_cellBCR = table.children[rowIndex].children[columnIndex].getBoundingClientRect();
+		}
+
+		let additionalTopOffset = 0;
+		let additionalLeftOffset = 0;
+		if(rowIndex === 0) {
+			additionalTopOffset = -1;
+		}
+
+		if(columnIndex === 0) {
+			additionalLeftOffset = -1;
+		}
+
+		let leftOffset = _cellBCR.left - _containerBCR.x - 1 + SpreadSheet.dataContainer.scrollLeft + additionalLeftOffset;
+		let widthCalc = _cellBCR.width + 3 - additionalLeftOffset;
+		let topOffset = _cellBCR.y - _containerBCR.y + additionalTopOffset - 1;
+		let heightCalc = _cellBCR.height - additionalTopOffset + 3;
+
+
+		_cellsHighlighter.style.cssText += 	"width: " + widthCalc + "px; " + 
+											"height: " + heightCalc + "px; " +
+											"left: " + leftOffset + "px; " +
+											"top: " + topOffset + "px; " +
+											"visibility: visible";
 	}
 
 	return new SelectedCellsManager(SpreadSheet);
