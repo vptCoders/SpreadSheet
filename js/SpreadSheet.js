@@ -471,17 +471,8 @@ let HeadingsManager = (function() {
 		/**//////		inside an horizontally scrollable CONTAINER. This
 		/**//////		CONTAINER will be put inside a WRAPPER which will
 		/**//////		hide the CONTAINER's scrollbar.
-		/**/	let wrapper = DOMManager.createDiv();
-		/**/	wrapper.classList.add(_HORIZONTALWRAPPER);
-		/**/
-		/**/	let cornerHeading = stage.querySelector("." + _CORNERWRAPPER);
-		/**/	let cornerHeadingBCR = cornerHeading.getBoundingClientRect();
-		/**/	let widthCalc = cornerHeadingBCR.width + DOMManager.scrollbarSize.width;
-		/**/	wrapper.style.cssText = "width: calc(100% - " + widthCalc + "px); left: " + cornerHeadingBCR.width + "px; height: " + cornerHeadingBCR.height + "px;";
-		/**/
-		/**/	let container = DOMManager.createDiv();
-		/**/	container.classList.add(_HORIZONTALCONTAINER);
-		/**//////
+		/**/	let wrapper = createContainers(_HORIZONTALWRAPPER, _HORIZONTALCONTAINER, true);
+		/**/	let container = wrapper.children[0];
 
 		/**//////	Let's make sure the scrolling behaviour is correct:
 		/**//////		The WRAPPER will be a child of SPREADSHEET's
@@ -500,50 +491,20 @@ let HeadingsManager = (function() {
 		/**//////		The CONTAINER's scrollLeft value needs to be the
 		/**//////		same as the SPREADSHEET's DATACONTAINER scrollLeft
 		/**//////		value. 
-		/**/	let isSyncingDataContainer = false;
-		/**/	let isSyncingContainer = false;
-		/**/	dataContainer.addEventListener("scroll", function(evt) {
-		/**/		if (!isSyncingDataContainer) {
-		/**/			isSyncingContainer = true;
-		/**/			container.scrollLeft = this.scrollLeft;
-		/**/		}
-		/**/
-		/**/		isSyncingDataContainer = false;
-		/**/	});
-		/**/
-		/**/	container.addEventListener("scroll", function(evt) {
-		/**/		if (!isSyncingContainer) {
-		/**/			isSyncingDataContainer = true;
-		/**/			_dataContainer.scrollLeft = this.scrollLeft;
-		/**/		}
-		/**/
-		/**/		isSyncingContainer = false;
-		/**/	});
-		/**//////
+		/**/	createScrollEvents(container, true);
 
 		/**//////	Let's create the data aka the columns names:
-		/**/	let data = [];
-		/**/	let row = [];
-		/**/	let columns = spreadsheet.columns;
-		/**/	for(let curColumn = 1; curColumn <= columns; curColumn++) {
-		/**/		let newCell = {
-		/**/			textContent: DataManager.convertNumberToColumnName(curColumn),
-		/**/		}
-		/**/		row.push(newCell);
-		/**/	}
-		/**/	data.push(row);
-		/**//////
+		/**/	let textContent = function(curRow, curColumn) {
+		/**/		return DataManager.convertNumberToColumnName(curColumn + 1)
+		/**/	};
+		/**/	let data = createData(1, spreadsheet.columns, textContent);
 
 		/**//////	Let's create the actual HTML table element:
-		/**/	let table = DOMManager.createTableFromData(data);
-		/**/	table.classList.add(_TABLE);
-		/**/	table.classList.add(_HORIZONTALTABLE);
-		/**/	table.style.cssText = "height: " + cornerHeadingBCR.height + "px";
-		/**//////
+		/**/	let table = createTable(data, [_TABLE, _HORIZONTALTABLE], true);
 
 		/**//////	Let's set the right DOM hierarchy:
 		/**/	container.appendChild(table);
-		/**/	wrapper.appendChild(container);
+		// /**/	wrapper.appendChild(container);
 		/**/	stage.appendChild(wrapper);
 		/**//////
 	}
@@ -558,17 +519,8 @@ let HeadingsManager = (function() {
 		/**//////		inside a vertically scrollable CONTAINER. This
 		/**//////		CONTAINER will be put inside a WRAPPER which will
 		/**//////		hide the CONTAINER's scrollbar.
-		/**/	let wrapper = DOMManager.createDiv();
-		/**/	wrapper.classList.add(_VERTICALWRAPPER);
-		/**/
-		/**/	let cornerHeading = stage.querySelector("." + _CORNERWRAPPER);
-		/**/	let cornerHeadingBCR = cornerHeading.getBoundingClientRect();
-		/**/	let heightCalc = cornerHeadingBCR.height + DOMManager.scrollbarSize.height;
-		/**/	wrapper.style.cssText = "height: calc(100% - " + heightCalc + "px); width: " + cornerHeadingBCR.width + "px; top: " + cornerHeadingBCR.height + "px;";
-		/**/
-		/**/	let container = DOMManager.createDiv();
-		/**/	container.classList.add(_VERTICALCONTAINER);
-		/**//////
+		/**/	let wrapper = createContainers(_VERTICALWRAPPER, _VERTICALCONTAINER);
+		/**/	let container = wrapper.children[0];
 
 		/**//////	Let's make sure the scrolling behaviour is correct:
 		/**//////		The WRAPPER will be a child of SPREADSHEET's
@@ -587,53 +539,112 @@ let HeadingsManager = (function() {
 		/**//////		The CONTAINER's scrollTop value needs to be the
 		/**//////		same as the SPREADSHEET's DATACONTAINER scrollTop
 		/**//////		value. 
-		/**/	let isSyncingDataContainer = false;
-		/**/	let isSyncingContainer = false;
-		/**/	dataContainer.addEventListener("scroll", function(evt) {
-		/**/		if (!isSyncingDataContainer) {
-		/**/			isSyncingContainer = true;
-		/**/			container.scrollTop = this.scrollTop;
-		/**/		}
-		/**/
-		/**/		isSyncingDataContainer = false;
-		/**/	});
-		/**/
-		/**/	container.addEventListener("scroll", function(evt) {
-		/**/		if (!isSyncingContainer) {
-		/**/			isSyncingDataContainer = true;
-		/**/			_dataContainer.scrollTop = this.scrollTop;
-		/**/		}
-		/**/
-		/**/		isSyncingContainer = false;
-		/**/	});
-		/**//////
+		/**/	createScrollEvents(container);
 
 		/**//////	Let's create the data aka the rows numbers:
-		/**/	let data = [];
-		/**/	let rows = spreadsheet.rows;
-		/**/	let columns = 1;
-		/**/	for(let curRow = 1; curRow <= rows; curRow++) {
-		/**/		let row = [];
-		/**/		let newCell = {
-		/**/			textContent: curRow,
-		/**/		}
-		/**/		row.push(newCell);
-		/**/		data.push(row);
-		/**/	}
-		/**//////
+		/**/	let textContent = function(curRow) {
+		/**/		return curRow + 1;
+		/**/	};
+		/**/	let data = createData(spreadsheet.rows, 1, textContent);
 
 		/**//////	Let's create the actual HTML table element:
-		/**/	let table = DOMManager.createTableFromData(data);
-		/**/	table.classList.add(_TABLE);
-		/**/	table.classList.add(_VERTICALTABLE);
-		/**/	table.style.cssText = "width: " + cornerHeadingBCR.width + "px";
-		/**//////
+		/**/	let table = createTable(data, [_TABLE, _VERTICALTABLE]);
 
 		/**//////	Let's set the right DOM hierarchy:
 		/**/	container.appendChild(table);
-		/**/	wrapper.appendChild(container);
 		/**/	stage.appendChild(wrapper);
-		/**//////
+	}
+
+	function createContainers(wrapperClass, containerClass, horizontalHeading) {
+		let wrapper = DOMManager.createDiv();
+		wrapper.classList.add(wrapperClass);
+	
+		let cornerHeading = stage.querySelector("." + _CORNERWRAPPER);
+		let cornerHeadingBCR = cornerHeading.getBoundingClientRect();
+		if(horizontalHeading) {
+			let widthCalc = cornerHeadingBCR.width + DOMManager.scrollbarSize.width;
+			wrapper.style.cssText = "width: calc(100% - " + widthCalc + "px); left: " + cornerHeadingBCR.width + "px; height: " + cornerHeadingBCR.height + "px;";
+		} else {
+			let heightCalc = cornerHeadingBCR.height + DOMManager.scrollbarSize.height;
+			wrapper.style.cssText = "height: calc(100% - " + heightCalc + "px); width: " + cornerHeadingBCR.width + "px; top: " + cornerHeadingBCR.height + "px;";
+		}
+	
+		let container = DOMManager.createDiv();
+		container.classList.add(containerClass);
+
+		wrapper.appendChild(container);
+		return wrapper;
+	}
+
+	function createData(numberOfRows, numberOfColumns, textContentCreationCallback) {
+		let data = [];
+		for(let curRow = 0; curRow < numberOfRows; curRow++) {
+			let row = [];
+			for(let curColumn = 0; curColumn < numberOfColumns; curColumn++) {
+				let newCell = {
+					textContent: textContentCreationCallback(curRow, curColumn, numberOfRows, numberOfColumns),
+				}
+				row.push(newCell);
+			}
+			data.push(row);
+		}
+
+		return data;
+	}
+
+	function createScrollEvents(container, scrollHorizontally) {
+		let isSyncingDataContainer = false;
+		let isSyncingContainer = false;
+		dataContainer.addEventListener("scroll", function(evt) {
+			if (!isSyncingDataContainer) {
+				isSyncingContainer = true;
+				if(scrollHorizontally) {
+					container.scrollLeft = this.scrollLeft;
+				} else {
+					container.scrollTop = this.scrollTop;
+				}
+			}
+	
+			isSyncingDataContainer = false;
+		});
+	
+		container.addEventListener("scroll", function(evt) {
+			if (!isSyncingContainer) {
+				isSyncingDataContainer = true;
+				if(scrollHorizontally) {
+					dataContainer.scrollLeft = this.scrollLeft;
+				} else {
+					dataContainer.scrollTop = this.scrollTop;
+				}
+			}
+	
+			isSyncingContainer = false;
+		});
+	}
+
+	function createTable(data, tableClass, horizontalTable) {
+		let table = DOMManager.createTableFromData(data);
+
+		if(tableClass.constructor === Array) {
+			let numberOfClasses = tableClass.length;
+			for(let curClass = 0; curClass < numberOfClasses; curClass++) {
+				table.classList.add(tableClass[curClass]);
+			}
+		} else if(tableClass.constructor === String) {
+			table.classList.add(tableClass);
+		} else {
+			throw new Error("Cannot create an HTML table with the specified class.");
+		}
+
+		let cornerHeading = stage.querySelector("." + _CORNERWRAPPER);
+		let cornerHeadingBCR = cornerHeading.getBoundingClientRect();
+		if(horizontalTable) {
+			table.style.cssText = "height: " + cornerHeadingBCR.height + "px";
+		} else {
+			table.style.cssText = "width: " + cornerHeadingBCR.width + "px";
+		}
+
+		return table;
 	}
 })();
 
