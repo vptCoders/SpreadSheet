@@ -69,7 +69,7 @@ function SpreadSheet(parentElement, options) {
 		parseContainer.call(this, parentElement);
 		_userOptions = options;
 		
-		this.setSelectionModule();
+		// this.setSelectionModule();
 	}
 	SpreadSheet.prototype = Object.create(this.constructor.prototype);
 	SpreadSheet.prototype.constructor = SpreadSheet;
@@ -221,17 +221,6 @@ function SpreadSheet(parentElement, options) {
 		// _selectionManager.selectCell(cellIndexes.row, cellIndexes.column, _dataTables[0], "thead");
 	}
 
-	SpreadSheet.prototype.selectRange = function(range) {
-		/*
-			range = {
-				firstCellRow:
-				firstCellColumn:
-				lastCellRow:
-				lastCellColumn:
-			}
-		*/
-	}
-
 
 	SpreadSheet.prototype.clearSelection = function() {
 		/*	Clear selected cells styling*/
@@ -263,71 +252,7 @@ function SpreadSheet(parentElement, options) {
 		}
 	}
 
-
-
-
-
-	SpreadSheet.prototype.getIndexes = function(cell) {
-		// if frozen columns, different....
-
-		let indexes = {
-			row: 0,
-			column: 0,
-		};
-
-/*		let _table = null;
-		if(	cell.parentElement.parentElement && cell.parentElement.parentElement.tagName &&
-			cell.parentElement.parentElement.tagName.toLowerCase() === "table") {
-				_table = cell.parentElement.parentElement;
-		} else if(	cell.parentElement.parentElement.parentElement && cell.parentElement.parentElement.parentElement.tagName &&
-					cell.parentElement.parentElement.parentElement.tagName.toLowerCase() === "table") {
-						_table = cell.parentElement.parentElement.parentElement;
-		} else {
-			throw new Error("Cannot");
-		}*/
-
-
-		for(let _curCol = 0; _curCol < cell.parentElement.children.length; _curCol++) {
-			if(cell.parentElement.children[_curCol] === cell) {
-				indexes.column = _curCol;
-			}
-		}
-
-		for(let _curRow = 0; _curRow < cell.parentElement.parentElement.children.length; _curRow++) {
-			if(cell.parentElement.parentElement.children[_curRow] === cell.parentElement) {
-				indexes.row = _curRow;
-			}
-		}
-
-
-		if(	cell.parentElement.parentElement && cell.parentElement.parentElement.tagName &&
-			cell.parentElement.parentElement.tagName.toLowerCase() === "tbody") {
-				let _hasHeader = cell.parentElement.parentElement.parentElement.getElementsByTagName("thead")[0];
-				if(_hasHeader) {
-					indexes.row += cell.parentElement.parentElement.parentElement.getElementsByTagName("thead")[0].children.length;
-				}
-		}
-
-		return indexes;
-	}
  
-
-
-	
-
-
-
-
-
-	SpreadSheet.prototype.setSelectionModule = function() {
-		let _useModule = (_userOptions && 'modules' in _userOptions && 'selection' in _userOptions.modules) ? 
-							_userOptions.modules.selection : _defaultOptions.modules.selection;
-		if(_useModule) {
-			_selectionManager = new SelectedCellsManager(this);
-		}
-	}
-
-
 	SpreadSheet.prototype.loadModules = function(modules) {
 		if(modules && modules.constructor === Array) {
 			let numberOfModulesToLoad = modules.length;
@@ -504,9 +429,15 @@ let HeadingsManager = (function() {
 
 		/**//////	Let's set the right DOM hierarchy:
 		/**/	container.appendChild(table);
-		// /**/	wrapper.appendChild(container);
 		/**/	stage.appendChild(wrapper);
-		/**//////
+
+		let createHorizontalHeadingEvent = new CustomEvent("createHorizontalHeading", {
+			detail: {
+				spreadsheet: spreadsheet,
+				table: table,
+			} 
+		});
+		document.dispatchEvent(createHorizontalHeadingEvent);
 	}
 
 	function createVerticalHeading() {
@@ -553,6 +484,14 @@ let HeadingsManager = (function() {
 		/**//////	Let's set the right DOM hierarchy:
 		/**/	container.appendChild(table);
 		/**/	stage.appendChild(wrapper);
+
+		let createVerticalHeadingEvent = new CustomEvent("createVerticalHeading", {
+			detail: {
+				spreadsheet: spreadsheet,
+				table: table,
+			} 
+		});
+		document.dispatchEvent(createVerticalHeadingEvent);
 	}
 
 	function createContainers(wrapperClass, containerClass, horizontalHeading) {
@@ -647,6 +586,226 @@ let HeadingsManager = (function() {
 		return table;
 	}
 })();
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+let SelectionManager = (function() {
+	// 	Private properties:
+	let mouseDownTarget = new MouseTarget();
+	let mouseUpTarget = new MouseTarget();
+	let dataContainerInitialScrollTop = 0;
+	let dataContainerInitialScrollLeft = 0;
+	let windowInitialScrollTop = 0;
+	let windowInitialScrollLeft = 0;
+	let validSelection = false;
+	let updateHighlighterCallback = null;
+	let cellsHighlighter = document.createElement("div");
+	cellsHighlighter.classList.add("SpreadSheet--cells_highlighter");
+	let spreadsheet = null;
+
+	document.addEventListener("useModule_selection", function(evt) {
+		spreadsheet = evt.detail;
+		if(spreadsheet instanceof SpreadSheet) {
+			// 	We're good to go!
+			createEventsListeners();
+		} else {
+			throw new Error("Cannot load the SelectionManager module without a valid SpreadSheet argument.");
+		}
+	});
+
+	function createEventsListeners() {
+		document.addEventListener("DOMContentLoaded", createHighlighter);
+		document.addEventListener("createHorizontalHeading", setColumnSelectionEvents);
+		document.addEventListener("createVerticalHeading", function(evt) {});
+	}
+
+	function createHighlighter(evt) {
+		spreadsheet.dataContainer.appendChild(cellsHighlighter);
+	}
+
+	function setColumnSelectionEvents(evt) {
+		let topOffsetCalculation = function(mouseDownTarget, mouseUpTarget) {
+			let top = mouseDownTarget.y + mouseDownTarget.height - spreadsheet.dataContainer.getBoundingClientRect().y - 1;
+			return top;
+		}
+
+		let leftOffsetCalculation = function(mouseDownTarget, mouseUpTarget) {
+			let mouseDownTargetXPos = mouseDownTarget.x + windowInitialScrollLeft - window.scrollX + dataContainerInitialScrollLeft;
+			let mouseUpTargetXPos = mouseUpTarget.x + spreadsheet.dataContainer.scrollLeft;			
+			let left = (mouseDownTargetXPos < mouseUpTargetXPos) ? mouseDownTargetXPos : mouseUpTargetXPos;
+			left -= spreadsheet.dataContainer.getBoundingClientRect().x + 1;
+			return left;
+		}
+
+		let heightCalculation = function(mouseDownTarget, mouseUpTarget) {
+			let height = spreadsheet.dataContainer.scrollHeight - evt.detail.table.getBoundingClientRect().height + 2;
+			return height;
+		}
+
+		let widthCalculation = function(mouseDownTarget, mouseUpTarget) {
+			let mouseDownTargetXPos = mouseDownTarget.x + windowInitialScrollLeft - window.scrollX + dataContainerInitialScrollLeft;
+			let mouseUpTargetXPos = mouseUpTarget.x + spreadsheet.dataContainer.scrollLeft;
+			let leftTarget = (mouseDownTargetXPos < mouseUpTargetXPos) ? mouseDownTarget : mouseUpTarget;
+			let rightTarget = (leftTarget === mouseDownTarget) ? mouseUpTarget : mouseDownTarget;
+			let width = Math.abs(mouseUpTargetXPos - mouseDownTargetXPos) + 3 + rightTarget.width;
+			return width;
+		}
+
+		setGenericSelectionEvents(evt.detail.table, {
+			top: topOffsetCalculation,
+			left: leftOffsetCalculation,
+			width: widthCalculation,
+			height: heightCalculation,
+		});
+	}
+
+	function setGenericSelectionEvents(target, calculationsCallbacks) {
+		let mouseDownCallback = mouseEventCallback.bind(null, mouseDownTarget, startUpdatingHighlighter, calculationsCallbacks);
+		target.addEventListener("mousedown", mouseDownCallback);
+
+		let mouseUpCallback = mouseEventCallback.bind(null, mouseUpTarget, resetHighlighter, calculationsCallbacks);
+		target.addEventListener("mouseup", mouseUpCallback);
+	}
+
+	function mouseEventCallback(mouseTarget, eventCallback, calculationsCallbacks, evt) {
+		evt.preventDefault();
+		evt.stopPropagation();
+		if(	evt.target && evt.target.tagName && 
+		   (evt.target.tagName.toLowerCase() === "td" || 
+			evt.target.tagName.toLowerCase() === "th")) {
+
+			if(evt.button === 0) {
+				//	Valid target cell. Save it. 
+				mouseTarget.target = evt.target;
+				if(eventCallback) {
+					eventCallback(calculationsCallbacks);
+				}
+			}
+		}
+	}
+
+	function startUpdatingHighlighter(calculationsCallbacks) {
+		if(validSelection) {
+			return;
+		}
+		validSelection = true;
+		dataContainerInitialScrollTop = spreadsheet.dataContainer.scrollTop;
+		dataContainerInitialScrollLeft = spreadsheet.dataContainer.scrollLeft;
+		windowInitialScrollTop = window.scrollY;
+		windowInitialScrollLeft = window.scrollX;
+		
+		updateHighlighterCallback = mouseEventCallback.bind(null, mouseUpTarget, redrawHighlighter, calculationsCallbacks);
+		document.addEventListener("mousemove", updateHighlighterCallback);
+
+		// shall add document.addeventlistener "mouseup", to clean if the user moused up outside the table
+		let mouseUpCallback = resetHighlighter.bind(null, calculationsCallbacks);
+		document.addEventListener("mouseup", mouseUpCallback);
+	}
+
+	function resetHighlighter(calculationsCallbacks) {
+		if(validSelection) {
+			redrawHighlighter(calculationsCallbacks);
+		}
+		document.removeEventListener("mousemove", updateHighlighterCallback);
+		document.removeEventListener("mouseup", resetHighlighter);
+		validSelection = false;
+	}
+
+	function redrawHighlighter(calculationsCallbacks) {
+		setTimeout(function() {			
+			let leftOffset = calculationsCallbacks.left(mouseDownTarget, mouseUpTarget);
+			let topOffset = calculationsCallbacks.top(mouseDownTarget, mouseUpTarget);
+			let widthCalc = calculationsCallbacks.width(mouseDownTarget, mouseUpTarget);
+			let heightCalc = calculationsCallbacks.height(mouseDownTarget, mouseUpTarget);
+
+			cellsHighlighter.style.cssText += 	"width: " + widthCalc + "px; " + 
+												"height: " + heightCalc + "px; " +
+												"left: " + leftOffset + "px; " +
+												"top: " + topOffset + "px; " +
+												"visibility: visible";
+		}, 0);
+	}
+})();
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1097,242 +1256,4 @@ function MouseTarget(targetElement) {
 	});
 
 	return new MouseTarget(targetElement);
-}
-
-
-
-
-
-
-
-
-
-
-
-
-function SelectedCellsManager(SpreadSheet) {
-	// 	Private properties:
-	let _mouseDownTarget = new MouseTarget();
-	let _mouseUpTarget = new MouseTarget();
-	let _dataContainerInitialScrollTop = 0;
-	let _dataContainerInitialScrollLeft = 0;
-	let _windowInitialScrollTop = 0;
-	let _windowInitialScrollLeft = 0;
-	let _validSelection = false;
-	let _updateHighlighterCallback = null;
-	let _cellsHighlighter = document.createElement("div");
-	_cellsHighlighter.classList.add("SpreadSheet--cells_highlighter");
-
-	// 	Private methods:
-	function isValidSpreadSheet() {
-		if('dataContainer' in SpreadSheet) {
-			return true;
-		} else {
-			return false;
-		}
-	}
-
-	function setCellSelectionEvents(dataTables) {
-		let _qtyDataTables = 0;
-		if(dataTables && dataTables.constructor === Array) {
-			_qtyDataTables = dataTables.length;
-		}
-		for(let _curTable = 0; _curTable < _qtyDataTables; _curTable++) {
-			let mouseDownCallback = mouseEventCallback.bind(null, _mouseDownTarget, startUpdatingHighlighter);
-			dataTables[_curTable].addEventListener("mousedown", mouseDownCallback);
-
-			let mouseUpCallback = mouseEventCallback.bind(null, _mouseUpTarget, resetHighlighter);
-			dataTables[_curTable].addEventListener("mouseup", mouseUpCallback);
-		}
-	}
-
-	function startUpdatingHighlighter() {
-		if(_validSelection) {
-			return;
-		}
-		SpreadSheet.clearSelection();
-		_validSelection = true;
-		_dataContainerInitialScrollTop = SpreadSheet.dataContainer.scrollTop;
-		_dataContainerInitialScrollLeft = SpreadSheet.dataContainer.scrollLeft;
-		_windowInitialScrollTop = window.scrollY;
-		_windowInitialScrollLeft = window.scrollX;
-		
-		_updateHighlighterCallback = mouseEventCallback.bind(null, _mouseUpTarget, redrawHighlighter);
-		document.addEventListener("mousemove", _updateHighlighterCallback);
-
-		// shall add document.addeventlistener "mouseup", to clean if the user moused up outside the table
-		document.addEventListener("mouseup", resetHighlighter);
-	}
-
-	function resetHighlighter(evt) {
-		if(_validSelection) {
-			redrawHighlighter();
-		}
-		document.removeEventListener("mousemove", _updateHighlighterCallback);
-		document.removeEventListener("mouseup", resetHighlighter);
-		_validSelection = false;
-	}
-
-	function mouseEventCallback(mouseTarget, eventCallback, evt) {
-		evt.preventDefault();
-		evt.stopPropagation();
-		let _validTable = false;
-		if(	evt.target && evt.target.tagName && 
-		   (evt.target.tagName.toLowerCase() === "td" || 
-			evt.target.tagName.toLowerCase() === "th")) {
-
-			for(let _curTable = 0; _curTable < SpreadSheet.dataTables.length; _curTable++) {
-				if(	evt.target.parentElement.parentElement === SpreadSheet.dataTables[_curTable] ||
-					evt.target.parentElement.parentElement.parentElement === SpreadSheet.dataTables[_curTable]) {
-					_validTable = true;
-				}
-			}
-
-			// if(evt.target.parentElement.parentElement)
-
-			if(evt.button === 0 && _validTable) {
-				//	Valid target cell. Save it. 
-				mouseTarget.target = evt.target;
-				if(eventCallback) {
-					eventCallback(evt);
-				}
-			}
-		}
-	}
-
-	function redrawHighlighter() {
-		setTimeout(function() {
-			
-
-			SpreadSheet.selectCell(SpreadSheet.getIndexes(_mouseUpTarget.target));
-			let mouseDownTargetIndexes = SpreadSheet.getIndexes(_mouseDownTarget.target);
-			let mouseUpTargetIndexes = SpreadSheet.getIndexes(_mouseUpTarget.target);
-			let additionalTopOffset = 0;
-			let additionalLeftOffset = 0;
-			if(mouseUpTargetIndexes.row === 0 || mouseDownTargetIndexes.row === 0) {
-				additionalTopOffset = -1;
-			}
-
-			if(mouseUpTargetIndexes.column === 0 || mouseDownTargetIndexes.column === 0) {
-				additionalLeftOffset = -1;
-			}
-
-
-
-
-
-
-			let _containerBCR = SpreadSheet.dataContainer.getBoundingClientRect();
-			let mouseDownTargetYPos = _mouseDownTarget.y + _windowInitialScrollTop - window.scrollY + _dataContainerInitialScrollTop;
-			let mouseDownTargetXPos = _mouseDownTarget.x + _windowInitialScrollLeft - window.scrollX + _dataContainerInitialScrollLeft;
-			let mouseUpTargetYPos = _mouseUpTarget.y + SpreadSheet.dataContainer.scrollTop;
-			let mouseUpTargetXPos = _mouseUpTarget.x + SpreadSheet.dataContainer.scrollLeft;
-
-			let leftTarget = (mouseDownTargetXPos < mouseUpTargetXPos) ? _mouseDownTarget : _mouseUpTarget;
-			let rightTarget = (leftTarget === _mouseDownTarget) ? _mouseUpTarget : _mouseDownTarget;
-			let topTarget = (mouseDownTargetYPos < mouseUpTargetYPos) ? _mouseDownTarget : _mouseUpTarget;
-			let bottomTarget = (topTarget === _mouseUpTarget) ? _mouseDownTarget : _mouseUpTarget;
-			
-			let leftOffset = (mouseDownTargetXPos < mouseUpTargetXPos) ? mouseDownTargetXPos : mouseUpTargetXPos;
-			leftOffset -= _containerBCR.x + 1;
-			leftOffset += additionalLeftOffset;
-			let widthCalc = Math.abs(mouseUpTargetXPos - mouseDownTargetXPos) + 3 + rightTarget.width - additionalLeftOffset;
-			let topOffset = (mouseDownTargetYPos < mouseUpTargetYPos) ? mouseDownTargetYPos : mouseUpTargetYPos;
-			topOffset -= _containerBCR.y + 1;
-			topOffset += additionalTopOffset;
-			let heightCalc = Math.abs(mouseUpTargetYPos - mouseDownTargetYPos) + 3 + bottomTarget.height - additionalTopOffset;
-			_cellsHighlighter.style.cssText += 	"width: " + widthCalc + "px; " + 
-												"height: " + heightCalc + "px; " +
-												"left: " + leftOffset + "px; " +
-												"top: " + topOffset + "px; " +
-												"visibility: visible";
-		}, 0);
-	}
-
-	// 	Constructor code:
-	function SelectedCellsManager(SpreadSheet) {
-		if(isValidSpreadSheet(SpreadSheet)) {
-			SpreadSheet.dataContainer.appendChild(_cellsHighlighter);
-			
-			document.addEventListener('dataTablesChanged', function(evt) {
-				if(evt.detail === SpreadSheet) {
-					setCellSelectionEvents(SpreadSheet.dataTables);
-				}
-			});
-		}
-	}
-	SelectedCellsManager.prototype = Object.create(this.constructor.prototype);
-	SelectedCellsManager.prototype.constructor = SelectedCellsManager;
-
-
-	SelectedCellsManager.prototype.selectColumn = function(columnIndex, table, selectedStyleClass) {
-		let _containerBCR = SpreadSheet.dataContainer.getBoundingClientRect();
-		let _columnBCR = table.children[0].children[columnIndex].getBoundingClientRect();
-
-		let leftOffset;
-		let widthCalc;
-		let topOffset;
-		let heightCalc;
-
-		let _selectedColumns = SpreadSheet.stage.querySelectorAll("." + selectedStyleClass);
-		if(_selectedColumns && _selectedColumns.length) {
-			let _curHighlighterBCR= _cellsHighlighter.getBoundingClientRect();
-			leftOffset = _curHighlighterBCR.x - _containerBCR.x;
-			widthCalc = _curHighlighterBCR.width + _columnBCR.width;
-		} else {
-			leftOffset = _columnBCR.left - _containerBCR.x - 1 + SpreadSheet.dataContainer.scrollLeft;
-			widthCalc = _columnBCR.width + 3;
-		}
-
-		topOffset = _columnBCR.y + _columnBCR.height - _containerBCR.y;
-		heightCalc = _containerBCR.height - _columnBCR.height;
-
-
-		_cellsHighlighter.style.cssText += 	"width: " + widthCalc + "px; " + 
-											"height: " + heightCalc + "px; " +
-											"left: " + leftOffset + "px; " +
-											"top: " + topOffset + "px; " +
-											"visibility: visible";
-
-		table.children[0].children[columnIndex].classList.add(selectedStyleClass);
-	}
-
-
-	SelectedCellsManager.prototype.selectCell = function(rowIndex, columnIndex, table, tableLocation) {
-		let _containerBCR = SpreadSheet.dataContainer.getBoundingClientRect();
-		let _cellBCR = null;
-		if(table.getElementsByTagName("thead")[0] || table.getElementsByTagName("tbody")) {
-			if(tableLocation) {
-				_cellBCR = table.getElementsByTagName(tableLocation)[0].children[rowIndex].children[columnIndex].getBoundingClientRect();
-			} else {
-				throw new Error("Need to define the table location.");
-			}
-		} else {
-			_cellBCR = table.children[rowIndex].children[columnIndex].getBoundingClientRect();
-		}
-
-		let additionalTopOffset = 0;
-		let additionalLeftOffset = 0;
-		if(rowIndex === 0) {
-			additionalTopOffset = -1;
-		}
-
-		if(columnIndex === 0) {
-			additionalLeftOffset = -1;
-		}
-
-		let leftOffset = _cellBCR.left - _containerBCR.x - 1 + SpreadSheet.dataContainer.scrollLeft + additionalLeftOffset;
-		let widthCalc = _cellBCR.width + 3 - additionalLeftOffset;
-		let topOffset = _cellBCR.y - _containerBCR.y + additionalTopOffset - 1;
-		let heightCalc = _cellBCR.height - additionalTopOffset + 3;
-
-
-		_cellsHighlighter.style.cssText += 	"width: " + widthCalc + "px; " + 
-											"height: " + heightCalc + "px; " +
-											"left: " + leftOffset + "px; " +
-											"top: " + topOffset + "px; " +
-											"visibility: visible";
-	}
-
-	return new SelectedCellsManager(SpreadSheet);
 }
