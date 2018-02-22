@@ -143,9 +143,13 @@ function SpreadSheet(parentElement, options) {
 		_table.classList.add("SpreadSheet--data_table");
 		_dataTables.push(_table);
 
-		_dataTablesChangedEvent = new CustomEvent('dataTablesChanged', {
-			detail: this, 
+		_dataTablesChangedEvent = new CustomEvent("createDataTable", {
+			detail: {
+				spreadsheet: this,
+				table: _table,
+			} 
 		});
+
 		document.dispatchEvent(_dataTablesChangedEvent);
 
 		_wrapper.appendChild(_table);
@@ -165,7 +169,7 @@ function SpreadSheet(parentElement, options) {
 		_dataTables.push(_table);
 
 		_dataTablesChangedEvent = new CustomEvent('dataTablesChanged', {
-			detail: this, 
+			detail: this,
 		});
 		document.dispatchEvent(_dataTablesChangedEvent);
 
@@ -675,15 +679,30 @@ let SelectionManager = (function() {
 		document.addEventListener("DOMContentLoaded", createHighlighter);
 		document.addEventListener("createHorizontalHeading", setColumnSelectionEvents);
 		document.addEventListener("createVerticalHeading", function(evt) {});
+
+		document.addEventListener("createDataTable", setCellsSelectionEvents);
 	}
 
 	function createHighlighter(evt) {
 		spreadsheet.dataContainer.appendChild(cellsHighlighter);
+
+		// 	In case the Selection module is added after the Headings module, the createHorizontalHeading has already been fired and the Selection module didn't capture it, so we need to fake the firing of the event....
+		let alreadyExistsHorizontalHeading = spreadsheet.stage.querySelector(".SpreadSheet--horizontal_heading_wrapper");
+		if(alreadyExistsHorizontalHeading) {
+			let createHorizontalHeadingEvent = new CustomEvent("createHorizontalHeading", {
+				detail: {
+					spreadsheet: spreadsheet,
+					table: alreadyExistsHorizontalHeading.children[0],
+				} 
+			});
+
+			setColumnSelectionEvents(createHorizontalHeadingEvent);
+		}
 	}
 
 	function setColumnSelectionEvents(evt) {
 		let topOffsetCalculation = function(mouseDownTarget, mouseUpTarget) {
-			let top = mouseDownTarget.y + mouseDownTarget.height - spreadsheet.dataContainer.getBoundingClientRect().y - 1;
+			let top = mouseDownTarget.y + mouseDownTarget.height - spreadsheet.dataContainer.getBoundingClientRect().y;
 			return top;
 		}
 
@@ -717,32 +736,75 @@ let SelectionManager = (function() {
 		});
 	}
 
+	function setCellsSelectionEvents(evt) {
+		let topOffsetCalculation = function(mouseDownTarget, mouseUpTarget) {
+			let mouseDownTargetYPos = mouseDownTarget.y + windowInitialScrollTop - window.scrollY + dataContainerInitialScrollTop;
+			let mouseUpTargetYPos = mouseUpTarget.y + spreadsheet.dataContainer.scrollTop;
+			let topTarget = (mouseDownTargetYPos < mouseUpTargetYPos) ? mouseDownTarget : mouseUpTarget;
+			let top = (topTarget === mouseDownTarget) ? mouseDownTargetYPos : mouseUpTargetYPos;
+			top -= spreadsheet.dataContainer.getBoundingClientRect().y;
+			return top;
+		}
+
+		let leftOffsetCalculation = function(mouseDownTarget, mouseUpTarget) {
+			let mouseDownTargetXPos = mouseDownTarget.x + windowInitialScrollLeft - window.scrollX + dataContainerInitialScrollLeft;
+			let mouseUpTargetXPos = mouseUpTarget.x + spreadsheet.dataContainer.scrollLeft;			
+			let left = (mouseDownTargetXPos < mouseUpTargetXPos) ? mouseDownTargetXPos : mouseUpTargetXPos;
+			left -= spreadsheet.dataContainer.getBoundingClientRect().x + 1;
+			return left;
+		}
+
+		let heightCalculation = function(mouseDownTarget, mouseUpTarget) {
+			let mouseDownTargetYPos = mouseDownTarget.y + windowInitialScrollTop - window.scrollY + dataContainerInitialScrollTop;
+			let mouseUpTargetYPos = mouseUpTarget.y + spreadsheet.dataContainer.scrollTop;
+			let topTarget = (mouseDownTargetYPos < mouseUpTargetYPos) ? mouseDownTarget : mouseUpTarget;
+			let bottomTarget = (topTarget === mouseDownTarget) ? mouseUpTarget : mouseDownTarget;
+			let height = Math.abs(mouseUpTargetYPos - mouseDownTargetYPos) + 3 + bottomTarget.height;
+			return height;
+		}
+
+		let widthCalculation = function(mouseDownTarget, mouseUpTarget) {
+			let mouseDownTargetXPos = mouseDownTarget.x + windowInitialScrollLeft - window.scrollX + dataContainerInitialScrollLeft;
+			let mouseUpTargetXPos = mouseUpTarget.x + spreadsheet.dataContainer.scrollLeft;
+			let leftTarget = (mouseDownTargetXPos < mouseUpTargetXPos) ? mouseDownTarget : mouseUpTarget;
+			let rightTarget = (leftTarget === mouseDownTarget) ? mouseUpTarget : mouseDownTarget;
+			let width = Math.abs(mouseUpTargetXPos - mouseDownTargetXPos) + 3 + rightTarget.width;
+			return width;
+		}
+
+		setGenericSelectionEvents(evt.detail.table, {
+			top: topOffsetCalculation,
+			left: leftOffsetCalculation,
+			width: widthCalculation,
+			height: heightCalculation,
+		});
+	}
+
 	function setGenericSelectionEvents(target, calculationsCallbacks) {
-		let mouseDownCallback = mouseEventCallback.bind(null, mouseDownTarget, startUpdatingHighlighter, calculationsCallbacks);
+		let mouseDownCallback = mouseEventCallback.bind(null, mouseDownTarget, target, startUpdatingHighlighter, calculationsCallbacks);
 		target.addEventListener("mousedown", mouseDownCallback);
 
-		let mouseUpCallback = mouseEventCallback.bind(null, mouseUpTarget, resetHighlighter, calculationsCallbacks);
+		let mouseUpCallback = mouseEventCallback.bind(null, mouseUpTarget, target, resetHighlighter, calculationsCallbacks);
 		target.addEventListener("mouseup", mouseUpCallback);
 	}
 
-	function mouseEventCallback(mouseTarget, eventCallback, calculationsCallbacks, evt) {
+	function mouseEventCallback(mouseTarget, target, eventCallback, calculationsCallbacks, evt) {
 		evt.preventDefault();
 		evt.stopPropagation();
 		if(	evt.target && evt.target.tagName && 
-		   (evt.target.tagName.toLowerCase() === "td" || 
-			evt.target.tagName.toLowerCase() === "th")) {
+		   (evt.target.tagName.toLowerCase() === "td" || evt.target.tagName.toLowerCase() === "th")) {
 
 			if(evt.button === 0) {
 				//	Valid target cell. Save it. 
 				mouseTarget.target = evt.target;
 				if(eventCallback) {
-					eventCallback(calculationsCallbacks);
+					eventCallback(target, calculationsCallbacks);
 				}
 			}
 		}
 	}
 
-	function startUpdatingHighlighter(calculationsCallbacks) {
+	function startUpdatingHighlighter(target, calculationsCallbacks) {
 		if(validSelection) {
 			return;
 		}
@@ -752,35 +814,38 @@ let SelectionManager = (function() {
 		windowInitialScrollTop = window.scrollY;
 		windowInitialScrollLeft = window.scrollX;
 		
-		updateHighlighterCallback = mouseEventCallback.bind(null, mouseUpTarget, redrawHighlighter, calculationsCallbacks);
+		updateHighlighterCallback = mouseEventCallback.bind(null, mouseUpTarget, target, redrawHighlighter, calculationsCallbacks);
 		document.addEventListener("mousemove", updateHighlighterCallback);
 
 		// shall add document.addeventlistener "mouseup", to clean if the user moused up outside the table
-		let mouseUpCallback = resetHighlighter.bind(null, calculationsCallbacks);
+		let mouseUpCallback = resetHighlighter.bind(null, target, calculationsCallbacks);
 		document.addEventListener("mouseup", mouseUpCallback);
 	}
 
-	function resetHighlighter(calculationsCallbacks) {
+	function resetHighlighter(target, calculationsCallbacks) {
 		if(validSelection) {
-			redrawHighlighter(calculationsCallbacks);
+			redrawHighlighter(target, calculationsCallbacks);
 		}
 		document.removeEventListener("mousemove", updateHighlighterCallback);
 		document.removeEventListener("mouseup", resetHighlighter);
 		validSelection = false;
 	}
 
-	function redrawHighlighter(calculationsCallbacks) {
-		setTimeout(function() {			
-			let leftOffset = calculationsCallbacks.left(mouseDownTarget, mouseUpTarget);
-			let topOffset = calculationsCallbacks.top(mouseDownTarget, mouseUpTarget);
-			let widthCalc = calculationsCallbacks.width(mouseDownTarget, mouseUpTarget);
-			let heightCalc = calculationsCallbacks.height(mouseDownTarget, mouseUpTarget);
+	function redrawHighlighter(target, calculationsCallbacks) {
+		setTimeout(function() {		
+			if(	mouseDownTarget.target.parentElement.parentElement === target ||
+				mouseDownTarget.target.parentElement.parentElement.parentElement === target) {
+					let leftOffset = calculationsCallbacks.left(mouseDownTarget, mouseUpTarget);
+					let topOffset = calculationsCallbacks.top(mouseDownTarget, mouseUpTarget);
+					let widthCalc = calculationsCallbacks.width(mouseDownTarget, mouseUpTarget);
+					let heightCalc = calculationsCallbacks.height(mouseDownTarget, mouseUpTarget);
 
-			cellsHighlighter.style.cssText += 	"width: " + widthCalc + "px; " + 
-												"height: " + heightCalc + "px; " +
-												"left: " + leftOffset + "px; " +
-												"top: " + topOffset + "px; " +
-												"visibility: visible";
+					cellsHighlighter.style.cssText += 	"width: " + widthCalc + "px; " + 
+														"height: " + heightCalc + "px; " +
+														"left: " + leftOffset + "px; " +
+														"top: " + topOffset + "px; " +
+														"visibility: visible";
+			}	
 		}, 0);
 	}
 })();
