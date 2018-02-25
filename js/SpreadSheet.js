@@ -138,7 +138,7 @@ function SpreadSheet(parentElement, options) {
 			_wrapper.style.cssText = "left: " + _cornerHeadingBCR.width + "px; top: " + _cornerHeadingBCR.height + "px";
 		}
 
-		let _table = DOMManager.createEmptyTable(_rows, _numberOfColumns);
+		let _table = DOMManager.createEmptyTable(_numberOfRows, _numberOfColumns, true);
 		_table.classList.add("SpreadSheet--table");
 		_table.classList.add("SpreadSheet--data_table");
 		_dataTables.push(_table);
@@ -661,8 +661,14 @@ let SelectionManager = (function() {
 	let windowInitialScrollLeft = 0;
 	let validSelection = false;
 	let updateHighlighterCallback = null;
+	let resetHighlighterCallback = null;
 	let cellsHighlighter = document.createElement("div");
 	cellsHighlighter.classList.add("SpreadSheet--cells_highlighter");
+
+	let cellsHighlighterShadow = document.createElement("div");
+	cellsHighlighterShadow.classList.add("SpreadSheet--cells_highlighter_shadow");
+	cellsHighlighter.appendChild(cellsHighlighterShadow);
+
 	let spreadsheet = null;
 
 	document.addEventListener("useModule_selection", function(evt) {
@@ -692,35 +698,35 @@ let SelectionManager = (function() {
 			let createHorizontalHeadingEvent = new CustomEvent("createHorizontalHeading", {
 				detail: {
 					spreadsheet: spreadsheet,
-					table: alreadyExistsHorizontalHeading.children[0],
+					table: alreadyExistsHorizontalHeading.querySelector(".SpreadSheet--horizontal_heading_table"),
 				} 
 			});
-
 			setColumnSelectionEvents(createHorizontalHeadingEvent);
 		}
 	}
 
 	function setColumnSelectionEvents(evt) {
 		let topOffsetCalculation = function(mouseDownTarget, mouseUpTarget) {
-			let top = mouseDownTarget.y + mouseDownTarget.height - spreadsheet.dataContainer.getBoundingClientRect().y;
+			let additionalTopOffset = isChrome() ? 1 : 2;
+			let top = mouseDownTarget.y + mouseDownTarget.height - spreadsheet.dataContainer.getBoundingClientRect().top - additionalTopOffset;
 			return top;
 		}
 
 		let leftOffsetCalculation = function(mouseDownTarget, mouseUpTarget) {
-			let mouseDownTargetXPos = mouseDownTarget.x + windowInitialScrollLeft - window.scrollX + dataContainerInitialScrollLeft;
+			let mouseDownTargetXPos = mouseDownTarget.x + windowInitialScrollLeft - window.pageXOffset + dataContainerInitialScrollLeft;
 			let mouseUpTargetXPos = mouseUpTarget.x + spreadsheet.dataContainer.scrollLeft;			
 			let left = (mouseDownTargetXPos < mouseUpTargetXPos) ? mouseDownTargetXPos : mouseUpTargetXPos;
-			left -= spreadsheet.dataContainer.getBoundingClientRect().x + 1;
+			left -= spreadsheet.dataContainer.getBoundingClientRect().left + 1;
 			return left;
 		}
 
 		let heightCalculation = function(mouseDownTarget, mouseUpTarget) {
-			let height = spreadsheet.dataContainer.scrollHeight - evt.detail.table.getBoundingClientRect().height + 2;
+			let height = spreadsheet.dataContainer.scrollHeight - evt.detail.table.getBoundingClientRect().height + 1;
 			return height;
 		}
 
 		let widthCalculation = function(mouseDownTarget, mouseUpTarget) {
-			let mouseDownTargetXPos = mouseDownTarget.x + windowInitialScrollLeft - window.scrollX + dataContainerInitialScrollLeft;
+			let mouseDownTargetXPos = mouseDownTarget.x + windowInitialScrollLeft - window.pageXOffset + dataContainerInitialScrollLeft;
 			let mouseUpTargetXPos = mouseUpTarget.x + spreadsheet.dataContainer.scrollLeft;
 			let leftTarget = (mouseDownTargetXPos < mouseUpTargetXPos) ? mouseDownTarget : mouseUpTarget;
 			let rightTarget = (leftTarget === mouseDownTarget) ? mouseUpTarget : mouseDownTarget;
@@ -728,34 +734,51 @@ let SelectionManager = (function() {
 			return width;
 		}
 
-		setGenericSelectionEvents(evt.detail.table, {
+		let styleCalculation = function(mouseDownTarget, mouseUpTarget) {
+			let downColumn = DataManager.cellIsColumnNumber(mouseDownTarget.target);
+			let upColumn = DataManager.cellIsColumnNumber(mouseUpTarget.target);
+			let curColumn = (downColumn < upColumn) ? downColumn : upColumn; 
+			let maxColumn = (curColumn === downColumn) ? upColumn : downColumn;
+			for(; curColumn <= maxColumn; curColumn++) {
+				mouseDownTarget.target.parentElement.children[curColumn].classList.add("SpreadSheet--horizontal_heading_column_selected");
+			}
+		}
+
+		setGenericSelectionEvents(evt.detail.table, [evt.detail.table], [evt.detail.table, spreadsheet.stage.querySelector(".SpreadSheet--data_table")], {
 			top: topOffsetCalculation,
 			left: leftOffsetCalculation,
 			width: widthCalculation,
 			height: heightCalculation,
+			style: styleCalculation,
 		});
 	}
 
 	function setCellsSelectionEvents(evt) {
 		let topOffsetCalculation = function(mouseDownTarget, mouseUpTarget) {
-			let mouseDownTargetYPos = mouseDownTarget.y + windowInitialScrollTop - window.scrollY + dataContainerInitialScrollTop;
+			let mouseDownTargetYPos = mouseDownTarget.y + windowInitialScrollTop -window.pageYOffset + dataContainerInitialScrollTop;
 			let mouseUpTargetYPos = mouseUpTarget.y + spreadsheet.dataContainer.scrollTop;
 			let topTarget = (mouseDownTargetYPos < mouseUpTargetYPos) ? mouseDownTarget : mouseUpTarget;
 			let top = (topTarget === mouseDownTarget) ? mouseDownTargetYPos : mouseUpTargetYPos;
-			top -= spreadsheet.dataContainer.getBoundingClientRect().y;
+			top -= spreadsheet.dataContainer.getBoundingClientRect().top + 1;
+			if( DataManager.cellIsRowNumber(mouseDownTarget.target) === 0 || DataManager.cellIsRowNumber(mouseUpTarget.target) === 0 ) {
+				top -= 1;
+			}
 			return top;
 		}
 
 		let leftOffsetCalculation = function(mouseDownTarget, mouseUpTarget) {
-			let mouseDownTargetXPos = mouseDownTarget.x + windowInitialScrollLeft - window.scrollX + dataContainerInitialScrollLeft;
+			let mouseDownTargetXPos = mouseDownTarget.x + windowInitialScrollLeft - window.pageXOffset + dataContainerInitialScrollLeft;
 			let mouseUpTargetXPos = mouseUpTarget.x + spreadsheet.dataContainer.scrollLeft;			
 			let left = (mouseDownTargetXPos < mouseUpTargetXPos) ? mouseDownTargetXPos : mouseUpTargetXPos;
-			left -= spreadsheet.dataContainer.getBoundingClientRect().x + 1;
+			left -= spreadsheet.dataContainer.getBoundingClientRect().left + 1;
+			if( DataManager.cellIsColumnNumber(mouseDownTarget.target) === 0 || DataManager.cellIsColumnNumber(mouseUpTarget.target) === 0 ) {
+				left -= 1;
+			}
 			return left;
 		}
 
 		let heightCalculation = function(mouseDownTarget, mouseUpTarget) {
-			let mouseDownTargetYPos = mouseDownTarget.y + windowInitialScrollTop - window.scrollY + dataContainerInitialScrollTop;
+			let mouseDownTargetYPos = mouseDownTarget.y + windowInitialScrollTop - window.pageYOffset + dataContainerInitialScrollTop;
 			let mouseUpTargetYPos = mouseUpTarget.y + spreadsheet.dataContainer.scrollTop;
 			let topTarget = (mouseDownTargetYPos < mouseUpTargetYPos) ? mouseDownTarget : mouseUpTarget;
 			let bottomTarget = (topTarget === mouseDownTarget) ? mouseUpTarget : mouseDownTarget;
@@ -764,7 +787,7 @@ let SelectionManager = (function() {
 		}
 
 		let widthCalculation = function(mouseDownTarget, mouseUpTarget) {
-			let mouseDownTargetXPos = mouseDownTarget.x + windowInitialScrollLeft - window.scrollX + dataContainerInitialScrollLeft;
+			let mouseDownTargetXPos = mouseDownTarget.x + windowInitialScrollLeft - window.pageXOffset + dataContainerInitialScrollLeft;
 			let mouseUpTargetXPos = mouseUpTarget.x + spreadsheet.dataContainer.scrollLeft;
 			let leftTarget = (mouseDownTargetXPos < mouseUpTargetXPos) ? mouseDownTarget : mouseUpTarget;
 			let rightTarget = (leftTarget === mouseDownTarget) ? mouseUpTarget : mouseDownTarget;
@@ -772,81 +795,159 @@ let SelectionManager = (function() {
 			return width;
 		}
 
-		setGenericSelectionEvents(evt.detail.table, {
+		let styleCalculation = function(mouseDownTarget, mouseUpTarget) {
+			let downColumn = DataManager.cellIsColumnNumber(mouseDownTarget.target);
+			let upColumn = DataManager.cellIsColumnNumber(mouseUpTarget.target);
+			let curColumn = (downColumn < upColumn) ? downColumn : upColumn; 
+			let maxColumn = (curColumn === downColumn) ? upColumn : downColumn;
+			let horizontalHeadingTable = spreadsheet.stage.querySelector(".SpreadSheet--horizontal_heading_table");
+			if(horizontalHeadingTable) {
+				for(; curColumn <= maxColumn; curColumn++) {
+					horizontalHeadingTable.children[0].children[curColumn].classList.add("SpreadSheet--horizontal_heading_cell_selected");
+				}
+			}
+
+			let downRow = DataManager.cellIsRowNumber(mouseDownTarget.target);
+			let upRow = DataManager.cellIsRowNumber(mouseUpTarget.target);
+			let curRow = (downRow < upRow) ? downRow : upRow; 
+			let maxRow = (curRow === downRow) ? upRow : downRow;
+			let verticalHeadingTable = spreadsheet.stage.querySelector(".SpreadSheet--vertical_heading_table");
+			if(verticalHeadingTable) {
+				for(; curRow <= maxRow; curRow++) {
+					verticalHeadingTable.children[curRow].children[0].classList.add("SpreadSheet--vertical_heading_cell_selected");
+				}
+			}
+		}
+
+		setGenericSelectionEvents(evt.detail.table, [evt.detail.table], [evt.detail.table], {
 			top: topOffsetCalculation,
 			left: leftOffsetCalculation,
 			width: widthCalculation,
 			height: heightCalculation,
+			style: styleCalculation,
 		});
 	}
 
-	function setGenericSelectionEvents(target, calculationsCallbacks) {
-		let mouseDownCallback = mouseEventCallback.bind(null, mouseDownTarget, target, startUpdatingHighlighter, calculationsCallbacks);
+	function setGenericSelectionEvents(target, allowedMouseDownTargets, allowedMouseUpTargets, calculationsCallbacks) {
+		let mouseDownCallback = mouseEventCallback.bind(null, mouseDownTarget, startUpdatingHighlighter, calculationsCallbacks, allowedMouseDownTargets, allowedMouseUpTargets);
 		target.addEventListener("mousedown", mouseDownCallback);
-
-		let mouseUpCallback = mouseEventCallback.bind(null, mouseUpTarget, target, resetHighlighter, calculationsCallbacks);
-		target.addEventListener("mouseup", mouseUpCallback);
+/*
+		let mouseUpCallback = mouseEventCallback.bind(null, mouseUpTarget, resetHighlighter, calculationsCallbacks, allowedMouseDownTargets, allowedMouseUpTargets);
+		target.addEventListener("mouseup", mouseUpCallback);*/
 	}
 
-	function mouseEventCallback(mouseTarget, target, eventCallback, calculationsCallbacks, evt) {
+	function mouseEventCallback(mouseTarget, eventCallback, calculationsCallbacks, allowedMouseDownTargets, allowedMouseUpTargets, evt) {
 		evt.preventDefault();
 		evt.stopPropagation();
-		if(	evt.target && evt.target.tagName && 
-		   (evt.target.tagName.toLowerCase() === "td" || evt.target.tagName.toLowerCase() === "th")) {
 
+		let targetsToTest = (mouseTarget === mouseDownTarget) ? allowedMouseDownTargets : allowedMouseUpTargets;
+		if(isTargetAllowed(evt.target, targetsToTest)) {
 			if(evt.button === 0) {
 				//	Valid target cell. Save it. 
 				mouseTarget.target = evt.target;
 				if(eventCallback) {
-					eventCallback(target, calculationsCallbacks);
+					eventCallback(calculationsCallbacks, allowedMouseDownTargets, allowedMouseUpTargets);
 				}
 			}
 		}
 	}
 
-	function startUpdatingHighlighter(target, calculationsCallbacks) {
+	function isTargetAllowed(target, allowedTargets) {
+		let numberOfAllowedTargets = allowedTargets.length;
+		for(let curTarget = 0; curTarget < numberOfAllowedTargets; curTarget++) {
+			if(target && target.parentElement && target.parentElement.parentElement) {
+				if(target.parentElement.parentElement === allowedTargets[curTarget] ||
+					target.parentElement.parentElement.parentElement === allowedTargets[curTarget]) {
+						return true;
+				}
+			}
+		}
+
+		return false;
+	}
+
+	function startUpdatingHighlighter(calculationsCallbacks, allowedMouseDownTargets, allowedMouseUpTargets) {
 		if(validSelection) {
 			return;
 		}
+
+		cellsHighlighterShadow.style.cssText += "visibility: hidden";
 		validSelection = true;
+		mouseUpTarget.target = mouseDownTarget.target;
 		dataContainerInitialScrollTop = spreadsheet.dataContainer.scrollTop;
 		dataContainerInitialScrollLeft = spreadsheet.dataContainer.scrollLeft;
-		windowInitialScrollTop = window.scrollY;
-		windowInitialScrollLeft = window.scrollX;
+		windowInitialScrollTop = window.pageYOffset;
+		windowInitialScrollLeft = window.pageXOffset;
+
+		redrawHighlighter(calculationsCallbacks);
 		
-		updateHighlighterCallback = mouseEventCallback.bind(null, mouseUpTarget, target, redrawHighlighter, calculationsCallbacks);
+		updateHighlighterCallback = mouseEventCallback.bind(null, mouseUpTarget, redrawHighlighter, calculationsCallbacks, allowedMouseDownTargets, allowedMouseUpTargets);
 		document.addEventListener("mousemove", updateHighlighterCallback);
 
 		// shall add document.addeventlistener "mouseup", to clean if the user moused up outside the table
-		let mouseUpCallback = resetHighlighter.bind(null, target, calculationsCallbacks);
-		document.addEventListener("mouseup", mouseUpCallback);
+		resetHighlighterCallback = resetHighlighter.bind(null, calculationsCallbacks);
+		document.addEventListener("mouseup", resetHighlighterCallback);
 	}
 
-	function resetHighlighter(target, calculationsCallbacks) {
-		if(validSelection) {
-			redrawHighlighter(target, calculationsCallbacks);
-		}
+	function resetHighlighter(calculationsCallbacks) {
+/*		if(validSelection) {
+			redrawHighlighter(calculationsCallbacks);
+		}*/
 		document.removeEventListener("mousemove", updateHighlighterCallback);
-		document.removeEventListener("mouseup", resetHighlighter);
+		document.removeEventListener("mouseup", resetHighlighterCallback);
+		mouseDownTarget.target = null;
+		mouseUpTarget.target = null;
 		validSelection = false;
 	}
 
-	function redrawHighlighter(target, calculationsCallbacks) {
-		setTimeout(function() {		
-			if(	mouseDownTarget.target.parentElement.parentElement === target ||
-				mouseDownTarget.target.parentElement.parentElement.parentElement === target) {
-					let leftOffset = calculationsCallbacks.left(mouseDownTarget, mouseUpTarget);
-					let topOffset = calculationsCallbacks.top(mouseDownTarget, mouseUpTarget);
-					let widthCalc = calculationsCallbacks.width(mouseDownTarget, mouseUpTarget);
-					let heightCalc = calculationsCallbacks.height(mouseDownTarget, mouseUpTarget);
+	function redrawHighlighter(calculationsCallbacks) {
+		setTimeout(function() {	
+			clearSelection();
+			if(calculationsCallbacks.style) {
+				calculationsCallbacks.style(mouseDownTarget, mouseUpTarget);
+			}
+			let leftOffset = calculationsCallbacks.left(mouseDownTarget, mouseUpTarget);
+			let topOffset = calculationsCallbacks.top(mouseDownTarget, mouseUpTarget);
+			let widthCalc = calculationsCallbacks.width(mouseDownTarget, mouseUpTarget);
+			let heightCalc = calculationsCallbacks.height(mouseDownTarget, mouseUpTarget);
 
-					cellsHighlighter.style.cssText += 	"width: " + widthCalc + "px; " + 
-														"height: " + heightCalc + "px; " +
-														"left: " + leftOffset + "px; " +
-														"top: " + topOffset + "px; " +
-														"visibility: visible";
-			}	
+			cellsHighlighter.style.cssText += 	"width: " + widthCalc + "px; " + 
+												"height: " + heightCalc + "px; " +
+												"left: " + leftOffset + "px; " +
+												"top: " + topOffset + "px; " +
+												"visibility: visible";
+
+
+			if(mouseDownTarget.target !== mouseUpTarget.target) {
+				cellsHighlighterShadow.style.cssText += "visibility: visible";
+			}
 		}, 0);
+	}
+
+	function clearSelection() {
+		let selectedColumns = spreadsheet.stage.querySelectorAll(".SpreadSheet--horizontal_heading_column_selected");
+		if(selectedColumns && selectedColumns.length) {
+			let numberOfSelectedColumns = selectedColumns.length;
+			for(let curColumn = 0; curColumn < numberOfSelectedColumns; curColumn++) {
+				selectedColumns[curColumn].classList.remove("SpreadSheet--horizontal_heading_column_selected");
+			}
+		}
+
+		let selectedCellsColumns = spreadsheet.stage.querySelectorAll(".SpreadSheet--horizontal_heading_cell_selected");
+		if(selectedCellsColumns && selectedCellsColumns.length) {
+			let numberOfSelectedCellsColumns = selectedCellsColumns.length;
+			for(let curColumn = 0; curColumn < numberOfSelectedCellsColumns; curColumn++) {
+				selectedCellsColumns[curColumn].classList.remove("SpreadSheet--horizontal_heading_cell_selected");
+			}
+		}
+
+		let selectedCellsRows = spreadsheet.stage.querySelectorAll(".SpreadSheet--vertical_heading_cell_selected");
+		if(selectedCellsRows && selectedCellsRows.length) {
+			let numberOfSelectedCellsRows = selectedCellsRows.length;
+			for(let curRow = 0; curRow < numberOfSelectedCellsRows; curRow++) {
+				selectedCellsRows[curRow].classList.remove("SpreadSheet--vertical_heading_cell_selected");
+			}
+		}
 	}
 })();
 
@@ -970,11 +1071,45 @@ let DataManager = {
 		}
 		
 		return _columnName;
-	}
+	},
+
+	cellIsColumnNumber: function(cell) {
+		let numberOfColumns = cell.parentElement.children.length;
+		let columnNumber = -1;
+		for(let curColumn = 0; curColumn < numberOfColumns; curColumn++) {
+			columnNumber += 1;
+			columnNumber += cell.parentElement.children[curColumn].colSpan - 1;
+			if(cell.parentElement.children[curColumn] === cell) {
+				return columnNumber;
+			}
+		}
+	},
+
+	cellIsRowNumber: function(cell) {
+		let numberOfRows = 0;
+		numberOfRows = cell.parentElement.parentElement.children.length;
+		
+		let additionalRows = 0;
+		if(cell.parentElement.parentElement && cell.parentElement.parentElement.tagName && cell.parentElement.parentElement.tagName.toLowerCase() === "tbody") {
+			let header = cell.parentElement.parentElement.parentElement.getElementsByTagName("thead")[0];
+			if(header) {
+				additionalRows = header.children.length;
+			} 
+		} 
+
+		let rowNumber = -1;
+		for(let curRow = 0; curRow < numberOfRows; curRow++) {
+			rowNumber += 1;
+			// rowNumber += cell.parentElement.children[curColumn].colSpan - 1;
+			if(cell.parentElement.parentElement.children[curRow] === cell.parentElement) {
+				return (rowNumber + additionalRows);
+			}
+		}
+	},
 };
 
 
-
+// getElementsByT
 
 
 
@@ -1019,14 +1154,12 @@ let DOMManager = (function() {
 	function _calculateScrollbarDimensions() {
 		let _tempScrollContainer = _createDiv();
 		_tempScrollContainer.style.cssText += "position: relative; top: 0;" + 
-					"left: 0;width: 100%; height: 100%; overflow: scroll;" +
+					"left: 0; width: 100px; height: 100px; overflow: scroll;" +
 					"visibility: hidden; opacity: 0;"
 		document.body.appendChild(_tempScrollContainer);
-
 		let _tempScrollContainerBCR = _tempScrollContainer.getBoundingClientRect();
 		_scrollBarSize.width = _tempScrollContainerBCR.width - _tempScrollContainer.clientWidth;
 		_scrollBarSize.height = _tempScrollContainerBCR.height - _tempScrollContainer.clientHeight;
-
 		document.body.removeChild(_tempScrollContainer);
 	}
 
@@ -1142,7 +1275,7 @@ let DOMManager = (function() {
 			return _table;
 		},
 
-		createEmptyTable: function(rows, columns) {
+		createEmptyTable: function(rows, columns, firstRowTH) {
 			/*
 				rows:
 					- integer
@@ -1173,7 +1306,7 @@ let DOMManager = (function() {
 
 			let _table = document.createElement("table");
 			if(Number.isInteger(rows)) {
-				let _tableCells = createCellsArray(rows, columns);
+				let _tableCells = createCellsArray(rows, columns, firstRowTH);
 				_table.appendChild(_tableCells);
 			} else {
 				let _tableHeader = _createHeader ? document.createElement("thead") : null;
@@ -1250,50 +1383,52 @@ let DOMManager = (function() {
 
 
 
-function MouseTarget(targetElement) {
+function MouseTarget(targetEl) {
 	// 	Private properties:
-	let _targetElement = null;
-	let _targetElementBCR = null;
+	let targetElement = null;
+	let targetElementBCR = null;
 
 	// 	Private methods:
 	function parseTargetElement(targetEl) {
 		if(targetEl) {
-			_targetElement = targetEl;
-			_targetElementBCR = _targetElement.getBoundingClientRect();
+			targetElement = targetEl;
+			targetElementBCR = targetElement.getBoundingClientRect();
 		}
 	}
 
 	// 	Constructor code:
-	function MouseTarget(targetElement) {
-		parseTargetElement(targetElement);
+	function MouseTarget(targetEl) {
+		parseTargetElement(targetEl);
 	}
 	MouseTarget.prototype = Object.create(this.constructor.prototype);
 	MouseTarget.prototype.constructor = MouseTarget;
 
 	// 	Properties setters/getters:
 	Object.defineProperty(MouseTarget.prototype, 'x', {
-		get: function() { 
-			return _targetElementBCR ? _targetElementBCR.x : null; 
+		get: function() {
+			let propertyToReturn = targetElementBCR.x ? targetElementBCR.x : targetElementBCR.left;
+			return targetElementBCR ? propertyToReturn : null; 
 		},
 	});
 	Object.defineProperty(MouseTarget.prototype, 'y', {
-		get: function() { 
-			return _targetElementBCR ? _targetElementBCR.y : null; 
+		get: function() {
+			let propertyToReturn = targetElementBCR.y ? targetElementBCR.y : targetElementBCR.top;
+			return targetElementBCR ? propertyToReturn : null; 
 		},
 	});
 	Object.defineProperty(MouseTarget.prototype, 'width', {
 		get: function() { 
-			return _targetElementBCR ? _targetElementBCR.width : null; 
+			return targetElementBCR ? targetElementBCR.width : null; 
 		},
 	});
 	Object.defineProperty(MouseTarget.prototype, 'height', {
 		get: function() { 
-			return _targetElementBCR ? _targetElementBCR.height : null; 
+			return targetElementBCR ? targetElementBCR.height : null; 
 		},
 	});
 	Object.defineProperty(MouseTarget.prototype, 'target', {
 		get: function() { 
-			return _targetElement ? _targetElement : null; 
+			return targetElement ? targetElement : null; 
 		},
 		set: function(newTarget) {
 			parseTargetElement(newTarget);
@@ -1301,24 +1436,78 @@ function MouseTarget(targetElement) {
 	});
 	Object.defineProperty(MouseTarget.prototype, 'top', {
 		get: function() { 
-			return _targetElementBCR ? _targetElementBCR.top : null; 
+			return targetElementBCR ? targetElementBCR.top : null; 
 		},
 	});
 	Object.defineProperty(MouseTarget.prototype, 'bottom', {
 		get: function() { 
-			return _targetElementBCR ? _targetElementBCR.bottom : null; 
+			return targetElementBCR ? targetElementBCR.bottom : null; 
 		},
 	});
 	Object.defineProperty(MouseTarget.prototype, 'left', {
 		get: function() { 
-			return _targetElementBCR ? _targetElementBCR.left : null; 
+			return targetElementBCR ? targetElementBCR.left : null; 
 		},
 	});
 	Object.defineProperty(MouseTarget.prototype, 'right', {
 		get: function() { 
-			return _targetElementBCR ? _targetElementBCR.right : null; 
+			return targetElementBCR ? targetElementBCR.right : null; 
 		},
 	});
 
-	return new MouseTarget(targetElement);
+	return new MouseTarget(targetEl);
+}
+
+
+
+
+
+
+
+
+
+// 	Polyfills for IE:
+(function () {
+
+	if ( typeof window.CustomEvent === "function" ) return false;
+
+	function CustomEvent ( event, params ) {
+		params = params || { bubbles: false, cancelable: false, detail: undefined };
+		var evt = document.createEvent( 'CustomEvent' );
+		evt.initCustomEvent( event, params.bubbles, params.cancelable, params.detail );
+		return evt;
+	}
+
+	CustomEvent.prototype = window.Event.prototype;
+
+	window.CustomEvent = CustomEvent;
+})();
+
+
+Number.isInteger = Number.isInteger || function(value) {
+	return typeof value === "number" && isFinite(value) && Math.floor(value) === value;
+};
+
+
+function isChrome() {
+	var isChromium = window.chrome,
+		winNav = window.navigator,
+		vendorName = winNav.vendor,
+		isOpera = winNav.userAgent.indexOf("OPR") > -1,
+		isIEedge = winNav.userAgent.indexOf("Edge") > -1,
+		isIOSChrome = winNav.userAgent.match("CriOS");
+
+	if (isIOSChrome) {
+		return true;
+	} else if (
+		isChromium !== null &&
+		typeof isChromium !== "undefined" &&
+		vendorName === "Google Inc." &&
+		isOpera === false &&
+		isIEedge === false
+	) {
+		return true;
+	} else { 
+		return false;
+	}
 }
